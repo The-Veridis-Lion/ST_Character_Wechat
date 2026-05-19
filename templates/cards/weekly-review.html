@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>上一周回顾</title>
+  <style>
+    :root {
+      --color-bg: #f8f9ff;
+      --color-surface: #ffffff;
+      --color-ink: #06142d;
+      --color-muted: #60708f;
+      --color-faint: #94a0b8;
+      --color-line: #dfe5f3;
+      --color-line-soft: #edf1fb;
+      --color-purple: #6b5cff;
+      --color-purple-soft: #f2f0ff;
+      --color-green: #5bcf74;
+      --color-green-soft: #f0fff3;
+      --color-orange: #ff6b35;
+      --shadow-paper: 0 18px 44px -36px rgba(28, 42, 81, 0.34);
+      --radius-page: 18px;
+      --radius-panel: 12px;
+      --radius-pill: 999px;
+      --font-sans: "Satoshi", "Geist", "Outfit", "Microsoft YaHei", "PingFang SC", sans-serif;
+      --font-mono: "JetBrains Mono", "Geist Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-width: 720px;
+      background: var(--color-bg);
+      color: var(--color-ink);
+      font-family: var(--font-sans);
+      letter-spacing: 0;
+    }
+
+    body {
+      padding: 0;
+    }
+
+    .sheet {
+      width: 720px;
+      margin: 0 auto;
+      padding: 38px 34px 28px;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+      border: 1px solid #cdd4e3;
+      border-radius: var(--radius-page);
+      box-shadow: var(--shadow-paper);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 70px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+
+    .hero-icon {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin-top: 1px;
+      border-radius: 12px;
+      color: #1623a4;
+      background: linear-gradient(145deg, #f0edff, #e7e2ff);
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      color: var(--color-ink);
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 820;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .date-field {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 1px solid #cbd4ff;
+      border-radius: 9px;
+      color: var(--color-muted);
+      background: rgba(255, 255, 255, 0.78);
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .date-field svg {
+      color: #65708b;
+    }
+
+    .panel {
+      padding: 18px;
+      border-radius: var(--radius-panel);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .status-panel {
+      margin-bottom: 16px;
+      border: 1px solid #bdf0c7;
+    }
+
+    .week-panel {
+      border: 1px solid #d9ddff;
+    }
+
+    .panel-title {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 17px;
+    }
+
+    .panel-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+
+    .status-panel .panel-icon {
+      color: #24b957;
+      background: #ddfbe2;
+      box-shadow: inset 0 0 0 1px #b8efc3;
+    }
+
+    .week-panel .panel-icon {
+      color: var(--color-purple);
+      background: var(--color-purple-soft);
+      box-shadow: inset 0 0 0 1px #d8d2ff;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--color-ink);
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .panel-subtitle {
+      margin: 7px 0 0;
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .field-label {
+      margin: 0 0 10px 6px;
+      color: var(--color-ink);
+      font-size: 14px;
+      line-height: 1.4;
+      font-weight: 650;
+    }
+
+    .tag-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px 18px;
+      margin: 0 0 18px;
+      padding: 0 6px;
+      list-style: none;
+    }
+
+    .status-tag {
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px dashed #62d87b;
+      border-radius: 9px;
+      color: #1d7b3a;
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 650;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .status-tag.is-empty {
+      color: transparent;
+    }
+
+    .summary-lines {
+      display: grid;
+      gap: 12px;
+      padding: 2px 6px 0;
+    }
+
+    .summary-line {
+      min-height: 30px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #bfc7d8;
+      color: #24314a;
+      font-size: 14px;
+      line-height: 1.65;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 0;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 52px;
+      bottom: 34px;
+      left: 86px;
+      width: 1px;
+      background: #cbd1e3;
+    }
+
+    .day-entry {
+      position: relative;
+      display: grid;
+      grid-template-columns: 70px 28px minmax(0, 1fr);
+      gap: 12px;
+      min-height: 112px;
+      padding: 6px 0;
+    }
+
+    .day-label {
+      padding-top: 8px;
+      color: var(--color-ink);
+      text-align: center;
+    }
+
+    .weekday {
+      display: block;
+      font-size: 17px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .date {
+      display: block;
+      margin-top: 5px;
+      color: var(--color-ink);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 500;
+    }
+
+    .dot-wrap {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      padding-top: 13px;
+    }
+
+    .day-dot {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--color-purple);
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px #ffffff;
+    }
+
+    .day-body {
+      display: grid;
+      gap: 7px;
+    }
+
+    .task-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 74px;
+      gap: 10px;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 10px 0 18px;
+      border: 1px solid var(--color-line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 10px 20px -20px rgba(74, 82, 125, 0.34);
+    }
+
+    .task-text {
+      position: relative;
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-text::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      top: 0.68em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--color-muted);
+    }
+
+    .progress {
+      display: inline-grid;
+      grid-template-columns: 22px auto;
+      gap: 7px;
+      align-items: center;
+      justify-self: end;
+      color: #43506a;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .progress-ring {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: conic-gradient(var(--color-purple) var(--progress), #e9e5ff 0);
+      position: relative;
+    }
+
+    .progress-ring::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: inherit;
+      background: #ffffff;
+    }
+
+    .state-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      min-height: 34px;
+      padding: 8px 13px;
+      border: 1px solid var(--color-line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .scale {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .scale-name {
+      display: inline-grid;
+      grid-template-columns: 18px auto;
+      gap: 6px;
+      align-items: center;
+      color: var(--scale-color);
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .scale-edge {
+      color: var(--color-ink);
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .dot-list {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .scale-dot {
+      width: 10px;
+      height: 10px;
+      border: 1.6px solid var(--scale-color);
+      border-radius: 50%;
+      background: #ffffff;
+    }
+
+    .scale-dot.is-active {
+      background: var(--scale-color);
+    }
+
+    .empty {
+      color: var(--color-faint);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    svg {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="hero">
+      <div class="hero-icon" data-icon="calendar"></div>
+      <div>
+        <h1>上一周回顾</h1>
+        <div class="date-field">
+          <span data-icon="small-calendar"></span>
+          <span id="dateRange">日期 / 时间段</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel status-panel">
+      <div class="panel-title">
+        <div class="panel-icon" data-icon="smile"></div>
+        <div>
+          <h2>用户心情 / 状态</h2>
+        </div>
+      </div>
+      <p class="field-label">心情 / 状态标签</p>
+      <ul class="tag-grid" id="statusTags"></ul>
+      <p class="field-label">简要描述</p>
+      <div class="summary-lines" id="summaryLines"></div>
+    </section>
+
+    <section class="panel week-panel">
+      <div class="panel-title">
+        <div class="panel-icon" data-icon="clock"></div>
+        <div>
+          <h2>本周事项与状态记录</h2>
+          <p class="panel-subtitle">记录每天的重要事件、任务进度与状态</p>
+        </div>
+      </div>
+      <div class="timeline" id="dailyRecords"></div>
+    </section>
+  </main>
+
+  <script id="card-data" type="application/json">__CARD_DATA_JSON__</script>
+  <script>
+    const data = JSON.parse(document.getElementById("card-data").textContent || "{}");
+    applyTokens(data.tokens);
+    hydrateIcons();
+
+    setText("dateRange", data.dateRange || [data.startDate, data.endDate].filter(Boolean).join(" / ") || "日期 / 时间段");
+    renderStatusTags(document.getElementById("statusTags"), data.statusTags || []);
+    renderSummaryLines(document.getElementById("summaryLines"), data.summary || "");
+    renderDailyRecords(document.getElementById("dailyRecords"), buildWeekRows(data));
+
+    function applyTokens(tokens) {
+      if (!tokens || typeof tokens !== "object") return;
+      for (const [key, value] of Object.entries(tokens)) {
+        if (!/^--[a-z0-9-]+$/i.test(key)) continue;
+        document.documentElement.style.setProperty(key, String(value));
+      }
+    }
+
+    function hydrateIcons() {
+      for (const element of document.querySelectorAll("[data-icon]")) {
+        element.innerHTML = iconMarkup(element.dataset.icon);
+      }
+    }
+
+    function setText(id, value) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value || "";
+    }
+
+    function renderStatusTags(container, items) {
+      clear(container);
+      const tags = normalizeArray(items).map(textOf).filter(Boolean).slice(0, 8);
+      while (tags.length < 8) tags.push("");
+      for (const tagText of tags) {
+        const item = document.createElement("li");
+        item.className = `status-tag${tagText ? "" : " is-empty"}`;
+        item.textContent = tagText || "占位";
+        container.appendChild(item);
+      }
+    }
+
+    function renderSummaryLines(container, summary) {
+      clear(container);
+      const parts = splitSummary(summary).slice(0, 2);
+      while (parts.length < 2) parts.push("");
+      for (const text of parts) {
+        const line = document.createElement("div");
+        line.className = "summary-line";
+        line.textContent = text;
+        container.appendChild(line);
+      }
+    }
+
+    function renderDailyRecords(container, records) {
+      clear(container);
+      for (const record of records) {
+        const entry = document.createElement("article");
+        entry.className = "day-entry";
+
+        const label = document.createElement("div");
+        label.className = "day-label";
+        const weekday = document.createElement("span");
+        weekday.className = "weekday";
+        weekday.textContent = record.weekday || "";
+        const date = document.createElement("span");
+        date.className = "date";
+        date.textContent = formatMonthDay(record.date) || "MM/DD";
+        label.append(weekday, date);
+
+        const dotWrap = document.createElement("div");
+        dotWrap.className = "dot-wrap";
+        const dot = document.createElement("span");
+        dot.className = "day-dot";
+        dotWrap.appendChild(dot);
+
+        const body = document.createElement("div");
+        body.className = "day-body";
+        const items = normalizeItems(record).slice(0, 2);
+        while (items.length < 2) {
+          items.push({ text: "事件 / 任务内容...", progressPercent: items.length === 0 ? 25 : 50 });
+        }
+        for (const item of items) {
+          body.appendChild(createTaskRow(item));
+        }
+        body.appendChild(createStateRow(record));
+
+        entry.append(label, dotWrap, body);
+        container.appendChild(entry);
+      }
+    }
+
+    function createTaskRow(item) {
+      const row = document.createElement("div");
+      row.className = "task-row";
+      const text = document.createElement("div");
+      text.className = "task-text";
+      text.textContent = item.text || "事件 / 任务内容...";
+      const progress = document.createElement("div");
+      progress.className = "progress";
+      const percent = clampPercentage(item.progressPercent);
+      const ring = document.createElement("span");
+      ring.className = "progress-ring";
+      ring.style.setProperty("--progress", `${percent}%`);
+      const label = document.createElement("span");
+      label.textContent = `${percent}%`;
+      progress.append(ring, label);
+      row.append(text, progress);
+      return row;
+    }
+
+    function createStateRow(record) {
+      const row = document.createElement("div");
+      row.className = "state-row";
+      row.append(
+        createScale({
+          icon: "moon",
+          name: "睡眠",
+          edge: "好",
+          value: record.sleepScore,
+          max: 6,
+          color: "var(--color-purple)",
+        }),
+        createScale({
+          icon: "sun",
+          name: "压力",
+          edge: "高",
+          value: record.stressScore,
+          max: 8,
+          color: "var(--color-orange)",
+        })
+      );
+      return row;
+    }
+
+    function createScale({ icon, name, edge, value, max, color }) {
+      const scale = document.createElement("div");
+      scale.className = "scale";
+      scale.style.setProperty("--scale-color", color);
+      const title = document.createElement("span");
+      title.className = "scale-name";
+      title.innerHTML = iconMarkup(icon) + `<span>${name}</span>`;
+      const dots = document.createElement("span");
+      dots.className = "dot-list";
+      const score = clampScale(value, max);
+      for (let index = 1; index <= max; index += 1) {
+        const dot = document.createElement("span");
+        dot.className = `scale-dot${index <= score ? " is-active" : ""}`;
+        dots.appendChild(dot);
+      }
+      const edgeLabel = document.createElement("span");
+      edgeLabel.className = "scale-edge";
+      edgeLabel.textContent = edge;
+      scale.append(title, dots, edgeLabel);
+      return scale;
+    }
+
+    function buildWeekRows(source) {
+      const records = normalizeArray(source.dailyRecords);
+      const byDate = new Map(records.map((record) => [String(record.date || ""), record]));
+      const byWeekday = new Map(records.map((record) => [String(record.weekday || ""), record]));
+      const start = parseDate(source.startDate);
+      const weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+      return weekdays.map((weekday, index) => {
+        const date = start ? addDays(start, index) : "";
+        const dateText = date ? toDateText(date) : "";
+        const found = byDate.get(dateText) || byWeekday.get(weekday) || {};
+        return {
+          date: found.date || dateText,
+          weekday: found.weekday || weekday,
+          title: found.title || "",
+          summary: found.summary || "",
+          items: found.items || found.tasks || found.events || [],
+          sleepScore: found.sleepScore ?? found.sleepLevel ?? 0,
+          stressScore: found.stressScore ?? found.pressureScore ?? 0,
+          completionPercent: found.completionPercent ?? found.progressPercent ?? 0,
+        };
+      });
+    }
+
+    function normalizeItems(record) {
+      const source = normalizeArray(record.items || record.tasks || record.events);
+      const items = source.map((item) => {
+        if (typeof item === "string") {
+          return { text: item, progressPercent: record.completionPercent || 0 };
+        }
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        return {
+          text: item.text || item.title || item.summary || item.task || item.event || "",
+          progressPercent: item.progressPercent ?? item.completionPercent ?? item.percent ?? record.completionPercent ?? 0,
+        };
+      }).filter((item) => item && item.text);
+      if (items.length) return items;
+      return [record.title, record.summary]
+        .filter(Boolean)
+        .map((text, index) => ({
+          text,
+          progressPercent: record.completionPercent || (index === 0 ? 25 : 50),
+        }));
+    }
+
+    function splitSummary(value) {
+      const text = String(value || "").trim();
+      if (!text) return [];
+      const parts = text.split(/(?<=[。！？!?])\s*/u).filter(Boolean);
+      if (parts.length > 1) return parts;
+      return text.length > 42 ? [text.slice(0, 42), text.slice(42)] : [text];
+    }
+
+    function normalizeArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+
+    function textOf(value) {
+      if (typeof value === "string") return value;
+      if (!value || typeof value !== "object") return "";
+      return value.text || value.title || value.summary || value.value || value.label || "";
+    }
+
+    function parseDate(value) {
+      const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/u);
+      if (!match) return null;
+      return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    }
+
+    function addDays(date, days) {
+      const next = new Date(date);
+      next.setUTCDate(date.getUTCDate() + days);
+      return next;
+    }
+
+    function toDateText(date) {
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(date.getUTCDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatMonthDay(value) {
+      const match = String(value || "").match(/^\d{4}-(\d{2})-(\d{2})/u);
+      return match ? `${match[1]}/${match[2]}` : "";
+    }
+
+    function clampPercentage(value) {
+      const numeric = Number.parseFloat(String(value ?? "").replace("%", ""));
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(100, Math.round(numeric)));
+    }
+
+    function clampScale(value, max) {
+      const numeric = Number.parseFloat(String(value ?? "").replace("%", ""));
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(max, Math.round(numeric)));
+    }
+
+    function clear(element) {
+      while (element && element.firstChild) element.removeChild(element.firstChild);
+    }
+
+    function iconMarkup(name) {
+      const common = 'width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+      const icons = {
+        calendar: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"></rect><path d="M8 3v4M16 3v4M4 10h16"></path><path d="M8 14h.01M12 14h.01M16 14h.01"></path></svg>`,
+        "small-calendar": `<svg ${common}><rect x="4" y="5" width="16" height="15" rx="3"></rect><path d="M8 3v4M16 3v4M4 10h16"></path></svg>`,
+        smile: `<svg ${common}><circle cx="12" cy="12" r="8"></circle><path d="M8.8 10h.01M15.2 10h.01M8.8 14.2c1.8 2 4.6 2 6.4 0"></path></svg>`,
+        clock: `<svg ${common}><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg>`,
+        moon: `<svg ${common}><path d="M20 15.2A7.8 7.8 0 0 1 8.8 4 8 8 0 1 0 20 15.2z"></path></svg>`,
+        sun: `<svg ${common}><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>`,
+      };
+      return icons[name] || icons.clock;
+    }
+  </script>
+</body>
+</html>

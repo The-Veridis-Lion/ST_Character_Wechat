@@ -1,0 +1,2851 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ST Character WeChat 本地安装手册</title>
+  <style>
+    :root {
+      --bg: #edf1f2;
+      --surface: #ffffff;
+      --surface-soft: #f6f8f8;
+      --ink: #172023;
+      --muted: #5f6b6f;
+      --line: #d5dddf;
+      --accent: #245f5b;
+      --accent-ink: #113835;
+      --accent-soft: #dfeceb;
+      --blue: #315d88;
+      --amber: #9a6418;
+      --danger: #9a3434;
+      --good: #2f6f54;
+      --shadow: 0 18px 48px rgba(23, 32, 35, 0.12);
+      --mono: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+      --sans: "Aptos", "Microsoft YaHei", "PingFang SC", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        linear-gradient(90deg, rgba(49, 93, 136, 0.06) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(49, 93, 136, 0.05) 1px, transparent 1px),
+        var(--bg);
+      background-size: 28px 28px;
+      color: var(--ink);
+      font-family: var(--sans);
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .shell {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 26px;
+    }
+
+    header {
+      padding: 28px 0 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 82ch;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 22px 0;
+    }
+
+    .tab-button,
+    .button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 14px;
+      cursor: pointer;
+    }
+
+    .tab-button[aria-selected="true"],
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .button.blue {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .panel.active { display: block; }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p,
+    li {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.72;
+    }
+
+    code {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      padding: 2px 5px;
+      color: var(--ink);
+    }
+
+    .grid,
+    .two-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      padding: 16px;
+    }
+
+    .card.accent { border-left: 4px solid var(--accent); }
+    .card.blue { border-left: 4px solid var(--blue); }
+    .card.warn { border-left: 4px solid var(--amber); }
+
+    .step-list {
+      display: grid;
+      gap: 14px;
+      counter-reset: steps;
+      margin: 18px 0 0;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      column-gap: 18px;
+      align-items: start;
+    }
+
+    .step::before {
+      counter-increment: steps;
+      content: counter(steps);
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .step p {
+      margin: 0;
+      padding-top: 3px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .field-section {
+      border-top: 1px solid var(--line);
+      margin-top: 20px;
+      padding-top: 16px;
+    }
+
+    .field-section h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+      color: var(--ink);
+    }
+
+    .field-section .section-note {
+      margin: 0;
+      max-width: 92ch;
+    }
+
+    .model-section {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      padding: 16px;
+    }
+
+    .model-section + .model-section {
+      margin-top: 16px;
+    }
+
+    .model-section .section-note + .section-note {
+      margin-top: 8px;
+    }
+
+    .field-section .form-grid {
+      margin-top: 12px;
+      margin-bottom: 0;
+    }
+
+    .field-section + textarea {
+      margin-top: 22px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 40px;
+      padding: 9px 11px;
+    }
+
+    .compact-field select {
+      max-width: 360px;
+    }
+
+    .compact-field select.short-select {
+      max-width: 150px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    textarea {
+      min-height: 220px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .status {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .status.success { color: var(--good); }
+    .status.warning { color: var(--amber); }
+
+    .scan-results {
+      display: grid;
+      border: 1px solid var(--line);
+      max-height: 300px;
+      overflow: auto;
+      background: var(--surface);
+    }
+
+    .scan-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .scan-row:last-child { border-bottom: 0; }
+    .scan-row span { color: var(--muted); }
+
+    .worldbook-layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .entry-list {
+      display: grid;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      max-height: 760px;
+      overflow: auto;
+    }
+
+    .pinned-description {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      background: var(--surface-soft);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .pinned-description[hidden] {
+      display: none;
+    }
+
+    .pinned-description h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .pinned-description .entry-preview {
+      max-height: 18em;
+    }
+
+    .entry {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .entry:last-child { border-bottom: 0; }
+    .entry[hidden] { display: none; }
+
+    .entry h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .entry-preview {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 8.2em;
+      overflow: auto;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--muted);
+      padding: 2px 7px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tag.active { color: var(--accent); border-color: var(--accent); }
+    .tag.blocked { color: var(--danger); border-color: var(--danger); }
+    .tag.manual { color: var(--amber); border-color: var(--amber); }
+
+    .template-guide {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .template-guide .wide {
+      grid-column: 1 / -1;
+    }
+
+    .field-reference {
+      border-top: 1px solid var(--line);
+      margin-top: 16px;
+      padding-top: 12px;
+    }
+
+    .field-reference summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    .field-reference summary::marker {
+      color: var(--accent);
+    }
+
+    .field-reference .summary-hint {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+      margin-left: 8px;
+    }
+
+    .field-reference-body {
+      padding-top: 10px;
+    }
+
+    .command-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .command-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .command-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .command-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .command-row span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    #reportTemplateEditor {
+      min-height: 420px;
+    }
+
+    @media (max-width: 900px) {
+      .shell { padding: 16px; }
+      .grid,
+      .two-card-grid,
+      .form-grid,
+      .worldbook-layout,
+      .template-guide,
+      .command-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .command-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>本地安装手册</h1>
+        <p class="subtitle">ST Character WeChat 的本地安装和配置入口。这个页面是静态离线工具，只在浏览器里读取你主动选择的文件，不上传角色卡、API 密钥、聊天记录或本地状态。</p>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="安装手册分页">
+      <button class="tab-button" data-tab="manual" aria-selected="true">手动安装</button>
+      <button class="tab-button" data-tab="agent">自动安装 Prompt</button>
+      <button class="tab-button" data-tab="runtime">本地设置</button>
+      <button class="tab-button" data-tab="api-config">模型 / API</button>
+      <button class="tab-button" data-tab="cards">角色卡目录</button>
+      <button class="tab-button" data-tab="card-edit">角色卡修改</button>
+      <button class="tab-button" data-tab="reports">日报周报自定义</button>
+      <button class="tab-button" data-tab="commands">微信指令</button>
+    </nav>
+
+    <section id="manual" class="panel active">
+      <h2>手动安装教程</h2>
+      <p>你现在已经在项目根目录里。直接打开 <code>00_START_HERE.html</code> 就能完成本地配置，不需要进 <code>docs/</code> 找工具页。运行 <code>npm run manual</code> 打开同一页面时，角色卡目录会由本机 helper 直接读取固定的 <code>character-cards/</code>。</p>
+      <div class="step-list">
+        <div class="step"><p>确认 Node.js 是 <code>22</code> 或更高版本：<code>node --version</code>。</p></div>
+        <div class="step"><p>在项目根目录运行 <code>npm install</code>。</p></div>
+        <div class="step"><p>把你的 SillyTavern <code>JSON</code> / <code>PNG</code> 角色卡放进项目根目录的 <code>character-cards/</code>。终端里运行 <code>npm run cards:list</code> 会直接扫描这个固定目录，不需要再输入路径。</p></div>
+        <div class="step"><p>手动安装时，先进入“本地设置”确认称呼、时区和提醒；再进入“模型 / API”选择本地 Codex、本地 Claude Code 或远程 API。如果选择远程 API，在同一页填写地址、密钥并获取模型；长期记忆检索也在这里设置。最后只在“模型 / API”的“保存配置”里保存一次本地 <code>.env</code>。如果使用下一页的自动安装 Prompt，Codex / Claude Code 会先替你创建 <code>.env</code>。</p></div>
+        <div class="step"><p>运行 <code>npm run check</code> 做语法检查和本地安装自检，再运行 <code>npm run login</code>。二维码会显示在当前终端窗口里；如果终端二维码显示不完整，就打开终端里打印的链接再扫码。</p></div>
+        <div class="step"><p>运行 <code>npm run start</code>，在微信里发送 <code>/char reload</code>、<code>/char list</code>、<code>/char use 1</code>，再发送普通消息测试角色聊天。之后 Windows 用户可以直接双击项目根目录的 <code>01_START_WECHAT.bat</code> 启动；想从 GitHub 更新程序并启动，就双击 <code>04_UPDATE_AND_START_WECHAT.bat</code>。它适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动接到 GitHub 更新源。更新会刷新程序文件并运行 <code>npm install</code>，不会清理 <code>.env</code>、角色卡、本地记忆、报告、状态目录或 <code>node_modules/</code>。</p></div>
+        <div class="step"><p>需要开机自启动时，双击项目根目录的 <code>02_ENABLE_STARTUP.bat</code>。它会在 <code>%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup</code> 创建指向普通启动脚本的 <code>ST Character WeChat.lnk</code>，不会在开机时自动更新。以后想关闭自启，双击 <code>05_DISABLE_STARTUP.bat</code>；也可以手动删除 Startup 文件夹里的这个快捷方式。移动项目文件夹后请重新运行启用自启动的 bat。</p></div>
+      </div>
+    </section>
+
+    <section id="agent" class="panel">
+      <h2>自动安装 Prompt</h2>
+      <p>选择你使用的工具，复制对应 Prompt 给 Codex 或 Claude Code。它会先在项目根目录创建 <code>.env</code> 并完成安装；之后如果要改模型或远程 API，再回到“模型 / API”保存新配置。</p>
+      <div class="two-card-grid">
+        <article class="card accent">
+          <h3>Codex 自动安装 Prompt</h3>
+          <textarea id="codexPrompt" readonly>这个项目已经下载到本机。请在当前 ST_Character_Wechat 项目根目录完成安装。
+
+你是 Codex，请优先使用本地 Codex 运行方式：
+ST_CHARACTER_WECHAT_RUNTIME=codex
+
+请执行：
+1. 确认 Node.js >= 22。
+2. 运行 npm install。
+3. 确认项目根目录存在 character-cards/。直接运行 npm run cards:list 扫描这个固定目录并列出已有 .json / .png 角色卡；不要询问角色卡路径，不要上传或索取私有角色卡。
+4. 直接在项目根目录创建本地 .env，不用打开网页填写。最少写入：
+   ST_CHARACTER_WECHAT_USER_NAME=
+   ST_CHARACTER_WECHAT_USER_GENDER=female
+   ST_CHARACTER_WECHAT_WORKSPACE_ROOT=当前项目根目录的绝对路径
+   ST_CHARACTER_WECHAT_RUNTIME=codex
+   ST_CHARACTER_WECHAT_CHARACTER_CARD_DIR=./character-cards
+   ST_CHARACTER_WECHAT_ALLOWED_USER_IDS=
+5. 运行 npm run check，确认语法和本地安装自检都通过。
+6. 运行 npm run login。二维码会显示在当前终端窗口里；如果终端二维码显示不完整，就打开终端里打印的链接再扫码。扫码和确认登录完成后继续。
+7. 运行 npm run start。
+8. 安装完成后输出：安装已完成。Windows 用户以后可以双击项目根目录的 01_START_WECHAT.bat 启动；想从 GitHub 更新程序并启动时，运行 04_UPDATE_AND_START_WECHAT.bat。它适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动接到 GitHub 更新源。更新会刷新程序文件并运行 npm install，不会清理 .env、character-cards、本地记忆、报告、状态目录或 node_modules。如果用户明确需要开机自启动，再运行 02_ENABLE_STARTUP.bat，它会在 %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup 创建指向普通启动脚本的 ST Character WeChat.lnk。关闭开机自启动时，运行 05_DISABLE_STARTUP.bat，或手动删除 Startup 文件夹里的 ST Character WeChat.lnk。以后想改模型或远程 API，打开 00_START_HERE.html 的“模型 / API”填写地址和密钥，获取模型后保存本地 .env。
+
+隐私规则：
+- 只创建本地未跟踪文件，例如 .env 和 ~/.st-character-wechat/*。
+- 不要提交或上传 .env、API 密钥、微信登录状态、私有角色卡、本地记忆、日报周报 PNG、node_modules 或用户自己额外创建的外层启动器。</textarea>
+          <div class="actions">
+            <button class="button primary" data-copy-target="codexPrompt">复制 Codex 自动安装 Prompt</button>
+          </div>
+        </article>
+        <article class="card blue">
+          <h3>Claude Code 自动安装 Prompt</h3>
+          <textarea id="claudePrompt" readonly>这个项目已经下载到本机。请在当前 ST_Character_Wechat 项目根目录完成安装。
+
+你是 Claude Code，请优先使用本地 Claude Code 运行方式：
+ST_CHARACTER_WECHAT_RUNTIME=claudecode
+请执行：
+1. 确认 Node.js >= 22。
+2. 运行 npm install。
+3. 确认项目根目录存在 character-cards/。直接运行 npm run cards:list 扫描这个固定目录并列出已有 .json / .png 角色卡；不要询问角色卡路径，不要上传或索取私有角色卡。
+4. 直接在项目根目录创建本地 .env，不用打开网页填写。最少写入：
+   ST_CHARACTER_WECHAT_USER_NAME=
+   ST_CHARACTER_WECHAT_USER_GENDER=female
+   ST_CHARACTER_WECHAT_WORKSPACE_ROOT=当前项目根目录的绝对路径
+   ST_CHARACTER_WECHAT_RUNTIME=claudecode
+   ST_CHARACTER_WECHAT_CHARACTER_CARD_DIR=./character-cards
+   ST_CHARACTER_WECHAT_ALLOWED_USER_IDS=
+5. 运行 npm run check，确认语法和本地安装自检都通过。
+6. 运行 npm run login。二维码会显示在当前终端窗口里；如果终端二维码显示不完整，就打开终端里打印的链接再扫码。扫码和确认登录完成后继续。
+7. 运行 npm run start。
+8. 安装完成后输出：安装已完成。Windows 用户以后可以双击项目根目录的 01_START_WECHAT.bat 启动；想从 GitHub 更新程序并启动时，运行 04_UPDATE_AND_START_WECHAT.bat。它适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动接到 GitHub 更新源。更新会刷新程序文件并运行 npm install，不会清理 .env、character-cards、本地记忆、报告、状态目录或 node_modules。如果用户明确需要开机自启动，再运行 02_ENABLE_STARTUP.bat，它会在 %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup 创建指向普通启动脚本的 ST Character WeChat.lnk。关闭开机自启动时，运行 05_DISABLE_STARTUP.bat，或手动删除 Startup 文件夹里的 ST Character WeChat.lnk。以后想改模型或远程 API，打开 00_START_HERE.html 的“模型 / API”填写地址和密钥，获取模型后保存本地 .env。
+
+隐私规则：
+- 只创建本地未跟踪文件，例如 .env 和 ~/.st-character-wechat/*。
+- 不要提交或上传 .env、API 密钥、微信登录状态、私有角色卡、本地记忆、日报周报 PNG、node_modules 或用户自己额外创建的外层启动器。</textarea>
+          <div class="actions">
+            <button class="button primary" data-copy-target="claudePrompt">复制 Claude Code 自动安装 Prompt</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="runtime" class="panel">
+      <h2>本地设置</h2>
+      <p>这里配置角色对你的称呼、你的代词、允许聊天的微信发送者、当地时间和每日提醒。模型、API 和长期记忆检索请到“模型 / API”页设置。</p>
+      <p>这里改完不用单独保存。确认本地设置后，去“模型 / API”页完成模型配置，并在那里一次写入项目根目录的 <code>.env</code>。</p>
+
+      <div class="field-section model-section">
+        <h3>聊天身份</h3>
+        <p class="status section-note">这些信息只写入本地 <code>.env</code>，用于让角色知道怎么称呼你、用什么代词，以及只回复哪个微信发送者。聊天里临时出现的新昵称不会自动写入 <code>.env</code>，想固定下来再回这里改。</p>
+        <div class="form-grid">
+          <label>角色对你的称呼
+            <input id="userName" placeholder="可留空；例如 小希 / 希希 / 亲爱的">
+          </label>
+          <label>你的代词
+            <select id="userGender">
+              <option value="female" selected>女性，她</option>
+              <option value="male">男性，他</option>
+              <option value="neutral">中性，TA</option>
+            </select>
+          </label>
+          <label>允许聊天的微信发送者 ID
+            <input id="allowedUserIds" placeholder="可先留空；首次收到的发送者会被使用">
+          </label>
+        </div>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>当地时间与位置</h3>
+        <p class="status section-note">时区下拉里显示的是常见 UTC 偏移，实际写入 <code>.env</code> 的是标准时区名；这样夏令时地区也不会算错。位置只写入本地 <code>.env</code>。</p>
+        <div class="form-grid">
+          <label class="compact-field">当地时区
+            <select id="localTimeZone">
+              <option value="Etc/GMT+12">UTC-12:00 国际日期变更线西侧</option>
+              <option value="Pacific/Pago_Pago">UTC-11:00 萨摩亚</option>
+              <option value="Pacific/Honolulu">UTC-10:00 夏威夷</option>
+              <option value="America/Anchorage">UTC-09:00/-08:00 阿拉斯加</option>
+              <option value="America/Los_Angeles">UTC-08:00/-07:00 北美太平洋时间</option>
+              <option value="America/Denver">UTC-07:00/-06:00 北美山地时间</option>
+              <option value="America/Chicago">UTC-06:00/-05:00 北美中部时间</option>
+              <option value="America/New_York">UTC-05:00/-04:00 北美东部时间</option>
+              <option value="America/Halifax">UTC-04:00/-03:00 大西洋时间</option>
+              <option value="America/Sao_Paulo">UTC-03:00 巴西东部</option>
+              <option value="Etc/GMT+2">UTC-02:00 大西洋中部</option>
+              <option value="Atlantic/Azores">UTC-01:00/+00:00 亚速尔</option>
+              <option value="Europe/London">UTC+00:00/+01:00 英国/葡萄牙</option>
+              <option value="Europe/Paris">UTC+01:00/+02:00 欧洲中部</option>
+              <option value="Europe/Athens">UTC+02:00/+03:00 欧洲东部</option>
+              <option value="Europe/Moscow">UTC+03:00 莫斯科</option>
+              <option value="Asia/Dubai">UTC+04:00 海湾地区</option>
+              <option value="Asia/Karachi">UTC+05:00 巴基斯坦</option>
+              <option value="Asia/Kolkata">UTC+05:30 印度</option>
+              <option value="Asia/Dhaka">UTC+06:00 孟加拉</option>
+              <option value="Asia/Bangkok">UTC+07:00 中南半岛</option>
+              <option value="Asia/Shanghai" selected>UTC+08:00 中国标准时间</option>
+              <option value="Asia/Tokyo">UTC+09:00 日本/韩国</option>
+              <option value="Australia/Adelaide">UTC+09:30/+10:30 澳大利亚中部</option>
+              <option value="Australia/Sydney">UTC+10:00/+11:00 澳大利亚东部</option>
+              <option value="Pacific/Noumea">UTC+11:00 新喀里多尼亚</option>
+              <option value="Pacific/Auckland">UTC+12:00/+13:00 新西兰</option>
+              <option value="Pacific/Tongatapu">UTC+13:00 汤加</option>
+              <option value="Pacific/Kiritimati">UTC+14:00 基里巴斯</option>
+            </select>
+          </label>
+          <label>当前位置
+            <input id="localLocation" placeholder="例如 Shanghai, China">
+          </label>
+        </div>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>每日提醒</h3>
+        <p class="status section-note">开启后，项目每天会在你选择的小时里随机一次提醒。如果错过这个小时，会在当天第一次回复你时自然带上天气/穿衣提醒。</p>
+        <div class="form-grid">
+          <label>每日天气/穿衣提醒
+            <select id="dailyWeatherReminderEnabled">
+              <option value="false">关闭</option>
+              <option value="true">开启，每天最多一次</option>
+            </select>
+          </label>
+          <label class="compact-field">提醒时间
+            <select id="dailyWeatherReminderHour" class="short-select">
+              <option value="0">00:00</option>
+              <option value="1">01:00</option>
+              <option value="2">02:00</option>
+              <option value="3">03:00</option>
+              <option value="4">04:00</option>
+              <option value="5">05:00</option>
+              <option value="6">06:00</option>
+              <option value="7">07:00</option>
+              <option value="8" selected>08:00</option>
+              <option value="9">09:00</option>
+              <option value="10">10:00</option>
+              <option value="11">11:00</option>
+              <option value="12">12:00</option>
+              <option value="13">13:00</option>
+              <option value="14">14:00</option>
+              <option value="15">15:00</option>
+              <option value="16">16:00</option>
+              <option value="17">17:00</option>
+              <option value="18">18:00</option>
+              <option value="19">19:00</option>
+              <option value="20">20:00</option>
+              <option value="21">21:00</option>
+              <option value="22">22:00</option>
+              <option value="23">23:00</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+    </section>
+
+    <section id="api-config" class="panel">
+      <h2>模型设置</h2>
+      <p>聊天模型和记忆检索模型是两组配置，但会一次保存到同一个本地 <code>.env</code>。切换模型或 API 不会清空角色卡、聊天记忆或微信发送者 ID；密钥只写入本地 <code>.env</code>，不要提交到 GitHub。</p>
+
+      <div class="field-section model-section">
+        <h3>聊天模型</h3>
+        <p class="status section-note">负责生成角色回复。选择本地 Codex 或本地 Claude Code 时，通常不用填写 API；选择远程 API 时，OpenAI、Gemini、DeepSeek 和其他兼容 OpenAI 的服务都按同一种方式填写。</p>
+        <p id="runtimeNote" class="status section-note"></p>
+        <div class="form-grid">
+          <label>运行方式
+            <select id="runtimeSelect">
+              <option value="codex">本地 Codex</option>
+              <option value="claudecode">本地 Claude Code</option>
+              <option value="api">远程 API</option>
+            </select>
+          </label>
+          <label data-runtime-field="api">API 地址
+            <input id="apiBaseUrl" placeholder="例如 https://api.openai.com/v1">
+          </label>
+          <label data-runtime-field="api">API 密钥
+            <input id="apiKey" placeholder="只写入本地 .env">
+          </label>
+          <label data-runtime-field="api">模型
+            <select id="apiModel">
+              <option value="">先获取模型列表</option>
+            </select>
+          </label>
+        </div>
+        <p class="status section-note" data-runtime-field="codex claudecode">当前选择的是本地运行方式，不需要填写远程聊天 API。要使用 OpenAI、Gemini、DeepSeek 或其他兼容服务，请先选择“远程 API”。</p>
+        <div class="actions">
+          <button id="fetchApiModelsButton" class="button blue" data-runtime-field="api">获取模型</button>
+        </div>
+        <p id="modelFetchStatus" class="status" aria-live="polite"></p>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>长期记忆检索</h3>
+        <p class="status section-note">可选增强，不开也不会影响正常聊天、日期提醒和日报周报。开启后，项目会把本地记忆建成索引；每次聊天只用当前消息检索少量候选，rerank 也只排序这些候选。最终最多注入 8 条，不相关或最近刚召回过的旧记忆会被过滤或降权。</p>
+        <div class="form-grid">
+          <label>长期记忆语义检索
+            <select id="memoryRetrievalEnabled">
+              <option value="false">关闭，使用默认文本记忆</option>
+              <option value="true">开启 embedding 检索</option>
+            </select>
+          </label>
+          <label data-memory-retrieval-field>候选记忆 rerank
+            <select id="memoryRetrievalRerankEnabled">
+              <option value="false">关闭，只按 embedding 相似度排序</option>
+              <option value="true">开启，候选记忆再精排</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>记忆检索模型</h3>
+        <p class="status section-note">只在上面开启长期记忆语义检索时使用。它不会替代聊天模型；embedding 负责从长期本地记忆里找候选，rerank 只把这些候选重新排序。</p>
+        <p class="status section-note" data-memory-retrieval-disabled>当前未开启长期记忆语义检索，不需要填写这里。</p>
+        <div class="form-grid" data-memory-retrieval-field>
+          <label>检索 API 地址
+            <input id="memoryRetrievalBaseUrl" placeholder="例如 https://api.siliconflow.cn/v1">
+          </label>
+          <label>检索 API 密钥
+            <input id="memoryRetrievalApiKey" placeholder="只写入本地 .env">
+          </label>
+          <label>Embedding 模型
+            <select id="memoryEmbeddingModel">
+              <option value="">先获取模型列表</option>
+            </select>
+          </label>
+          <label data-memory-rerank-field>Rerank 模型
+            <select id="memoryRerankModel">
+              <option value="">先获取模型列表</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions" data-memory-retrieval-field>
+          <button id="fetchMemoryModelsButton" class="button blue">获取记忆检索模型</button>
+        </div>
+        <p id="memoryModelFetchStatus" class="status" aria-live="polite"></p>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>保存配置</h3>
+        <p class="status section-note">本地设置、聊天模型和记忆检索模型会一次写入同一个项目根目录 <code>.env</code>。通过 <code>npm run manual</code> 打开本页时会直接写入，不会生成 <code>env.env</code>；如果直接双击 HTML，浏览器会要求选择项目根目录。</p>
+        <textarea id="envOutput" readonly spellcheck="false" placeholder="确认本地设置和模型 / API 后，这里会生成最终 .env 内容。"></textarea>
+        <div class="actions">
+          <button class="button primary" data-copy-target="envOutput">复制 .env</button>
+          <button class="button save-env-button">保存本地 .env</button>
+        </div>
+        <p id="envSaveStatus" class="status" data-status-id="envSaveStatus" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section id="cards" class="panel">
+      <h2>角色卡目录</h2>
+      <p>把 SillyTavern <code>JSON</code> / <code>PNG</code> 角色卡放进项目根目录的 <code>character-cards/</code>。这里就是本项目固定读取的角色卡文件夹。</p>
+      <div class="two-card-grid">
+        <article class="card accent">
+          <h3>网页扫描</h3>
+          <p>通过 <code>npm run manual</code> 打开本页时，按钮会直接列出 <code>character-cards/</code> 里的角色卡。直接双击 HTML 也能用；如果浏览器要求授权，只需确认一次。扫描只发生在本机，不上传文件。</p>
+          <div class="actions">
+            <button id="scanCardDirectoryButton" class="button primary">扫描固定 character-cards</button>
+          </div>
+          <label class="visually-hidden">选择 character-cards 文件夹
+            <input id="cardDirectoryInput" type="file" webkitdirectory directory multiple accept=".json,.png,application/json,image/png">
+          </label>
+          <p id="cardScanStatus" class="status">尚未扫描。</p>
+          <div id="cardScanResults" class="scan-results"></div>
+        </article>
+        <article class="card blue">
+          <h3>导入到固定目录</h3>
+          <p>通过 <code>npm run manual</code> 打开本页时，可以直接把本机角色卡写入项目根目录的 <code>character-cards/</code>，不用再手动找路径。</p>
+          <div class="actions">
+            <button id="importCardsButton" class="button blue">导入角色卡到 character-cards</button>
+          </div>
+          <label class="visually-hidden">导入角色卡
+            <input id="cardImportInput" type="file" multiple accept=".json,.png,application/json,image/png">
+          </label>
+          <p id="cardImportStatus" class="status" aria-live="polite"></p>
+          <p>终端里运行 <code>npm run cards:list</code> 可以查看同一个文件夹。启动微信桥后，用 <code>/char reload</code> 重新载入，用 <code>/char list</code> 查看列表。</p>
+          <p>私有角色卡会被 <code>.gitignore</code> 忽略，不要提交到 GitHub。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="card-edit" class="panel">
+      <h2>角色卡修改</h2>
+      <p>选择单张本地角色卡，页面会置顶显示角色描述并列出世界书条目。MVU/变量/状态栏/脚本/正则类内容会被自动关闭；原卡里已关闭的普通条目也可以勾选打开。保存的是完整修改后的角色卡，原本是 PNG 就保存 PNG，原本是 JSON 就保存 JSON。通过 <code>npm run manual</code> 打开时，可以直接写入 <code>character-cards/</code>。</p>
+      <div class="worldbook-layout">
+        <aside>
+          <label>选择角色卡
+            <input id="cardFile" type="file" accept=".json,.png,application/json,image/png">
+          </label>
+          <h3 id="cardName">尚未加载角色卡</h3>
+          <p id="cardMeta">支持 SillyTavern 的 JSON 角色卡和 PNG 元数据。</p>
+          <div class="stats">
+            <div class="stat"><strong id="totalCount">0</strong><span>条目</span></div>
+            <div class="stat"><strong id="activeCount">0</strong><span>启用</span></div>
+            <div class="stat"><strong id="hardCount">0</strong><span>已硬过滤</span></div>
+            <div class="stat"><strong id="manualCount">0</strong><span>手动改动</span></div>
+          </div>
+          <textarea id="overrideOutput" readonly spellcheck="false"></textarea>
+          <div class="actions">
+            <button id="copyOverrideButton" class="button primary" disabled>复制改后 JSON</button>
+            <button id="saveModifiedCardButton" class="button blue" disabled>保存到 character-cards</button>
+            <button id="downloadOverrideButton" class="button" disabled>下载改后角色卡</button>
+          </div>
+          <p id="cardExportStatus" class="status" aria-live="polite"></p>
+        </aside>
+        <div>
+          <article id="characterDescriptionPanel" class="pinned-description" hidden>
+            <h3>角色描述（置顶）</h3>
+            <div id="characterDescriptionTags" class="tags"></div>
+            <p id="characterDescriptionText" class="entry-preview"></p>
+          </article>
+          <label>搜索条目
+            <input id="entrySearch" type="search" placeholder="搜索世界书条目">
+          </label>
+          <div id="entryList" class="entry-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="reports" class="panel">
+      <h2>日报周报自定义</h2>
+      <div class="template-guide">
+        <article class="card accent">
+          <h3>模板能改什么</h3>
+          <ul>
+            <li>内容模块：日记可改状态概览、今日小结、主要话题、关键信息、聊天摘录、补充信息、时间分布和能量趋势；周记可改状态标签、简要描述、每日事项、任务进度、睡眠和压力刻度。</li>
+            <li>排版：宽度、分栏、卡片密度、字体、留白、颜色、长图节奏。</li>
+            <li>样式：直接写在 HTML 的 <code>&lt;style&gt;</code> 里；程序会把数据注入 <code>__CARD_DATA_JSON__</code> 后截图成 PNG。</li>
+          </ul>
+          <details class="field-reference">
+            <summary>常用数据字段 <span class="summary-hint">需要写模板时展开查看</span></summary>
+            <div class="field-reference-body">
+              <p>下面这些英文是模板里的数据字段名，写 HTML 时需要按原样使用；页面展示文字可以全部写中文。</p>
+              <p>日记内置模板直接显示：<code>date</code>、<code>generatedAt</code>、<code>title</code>、<code>summary</code>、<code>moodLabel</code>、<code>moodEmoji</code>、<code>moodDetail</code>、<code>stateOverview</code>、<code>topics</code>、<code>keyFacts</code>、<code>chatExcerpts</code>、<code>supplemental</code>、<code>timeDistribution</code>、<code>energyTrend</code>、<code>tags</code>。其中 <code>chatExcerpts</code> 在页面上显示为“聊天摘录”；<code>representativeQuotes</code>、<code>quotes</code>、<code>sentences</code> 只是兼容别名。</p>
+              <p>周记内置模板直接显示：<code>dateRange</code>、<code>startDate</code>、<code>endDate</code>、<code>summary</code>、<code>statusTags</code>、<code>dailyRecords</code>、<code>dailyRecords[].date</code>、<code>dailyRecords[].weekday</code>、<code>dailyRecords[].items[].text</code>、<code>dailyRecords[].items[].progressPercent</code>、<code>dailyRecords[].sleepScore</code>、<code>dailyRecords[].stressScore</code>、<code>dailyRecords[].completionPercent</code>。</p>
+              <p>自定义模板还可以读取报告数据里的兼容字段，例如日记的 <code>representativeQuotes</code>，以及周记的 <code>title</code>、<code>generatedAt</code>、<code>userName</code>、<code>weekMatters</code>、<code>metrics</code>、<code>weeklyTrend</code>、<code>closing</code>。</p>
+            </div>
+          </details>
+        </article>
+        <article class="card warn">
+          <h3>模板库</h3>
+          <p>本页会把导入的模板、当前选择和编辑草稿保存在这个浏览器里；项目真正生成长图时，读取的是模板目录里的 HTML。默认目录是 <code>templates/cards/</code>。</p>
+          <p>为避免覆盖内置模板，建议导出新模板文件后放进你自己建的模板目录，再在 <code>.env</code> 设置 <code>ST_CHARACTER_WECHAT_REPORT_CARD_TEMPLATE_DIR</code>。这个目录里的日记和周记文件名仍分别是 <code>daily-diary.html</code>、<code>weekly-review.html</code>。</p>
+          <label>报告类型
+            <select id="reportKindSelect">
+              <option value="daily">日记模板</option>
+              <option value="weekly">周记模板</option>
+            </select>
+          </label>
+          <label>当前生效模板
+            <select id="reportActiveTemplateSelect">
+            </select>
+          </label>
+          <label>导入模板
+            <input id="reportTemplateInput" type="file" accept=".html,.css,text/html,text/css" multiple>
+          </label>
+          <div class="actions">
+            <button id="loadBuiltinTemplateButton" class="button">恢复内置默认</button>
+            <button id="exportActiveTemplateButton" class="button blue">导出生效模板</button>
+            <button id="deleteCustomTemplateButton" class="button">删除自定义模板</button>
+          </div>
+          <p id="reportTemplateStatus" class="status" aria-live="polite"></p>
+        </article>
+        <article class="card blue wide">
+          <h3>编辑当前模板草稿</h3>
+          <p>这里的修改会自动保存为浏览器草稿，不点按钮也不会因为切换分页丢掉。导出新模板文件不会覆盖项目内置模板。</p>
+          <textarea id="reportTemplateEditor" spellcheck="false" placeholder="选择或导入模板后，这里会显示 HTML。"></textarea>
+          <p id="reportTemplateDraftStatus" class="status" aria-live="polite"></p>
+          <div class="actions">
+            <button id="restoreOriginalTemplateButton" class="button">恢复原本模板</button>
+            <button id="saveProjectTemplateButton" class="button">导出新模板文件</button>
+            <button id="copyReportTemplateButton" class="button blue">复制生效模板</button>
+          </div>
+          <p class="status">输出 PNG 默认保存在本地 state 目录，不会提交 GitHub。微信命令：<code>/dailycard</code>、<code>/weeklycard</code>。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="commands" class="panel">
+      <h2>微信指令</h2>
+      <p>在微信聊天里直接发送这些命令。普通文字会发给当前角色；线程、模型和报告命令通常需要先用 <code>/char use</code> 选好角色。</p>
+      <div class="command-grid">
+        <article class="card accent">
+          <h3>角色</h3>
+          <div class="command-list">
+            <div class="command-row"><code>/char reload</code><span>重新扫描本地 <code>character-cards/</code>。</span></div>
+            <div class="command-row"><code>/char list</code><span>列出当前可用角色卡。</span></div>
+            <div class="command-row"><code>/char use &lt;名称|编号&gt;</code><span>切换当前微信发送者正在聊天的角色。</span></div>
+            <div class="command-row"><code>/char current</code><span>查看当前角色和线程状态。</span></div>
+            <div class="command-row"><code>/char reset</code><span>重置当前角色的独立对话线程。</span></div>
+          </div>
+        </article>
+        <article class="card blue">
+          <h3>线程与上下文</h3>
+          <div class="command-list">
+            <div class="command-row"><code>/status</code><span>查看工作区、当前角色、模型和上下文用量。</span></div>
+            <div class="command-row"><code>/bind &lt;绝对路径&gt;</code><span>绑定工作区；普通本地使用通常不用改。</span></div>
+            <div class="command-row"><code>/compact</code><span>压缩当前角色线程上下文，不删除本地用户记忆。</span></div>
+            <div class="command-row"><code>/compact auto</code><span>查看自动压缩设置。</span></div>
+            <div class="command-row"><code>/compact auto on/off</code><span>开启或关闭自动压缩。</span></div>
+            <div class="command-row"><code>/compact auto &lt;百分比&gt;</code><span>设置上下文用到多少时自动压缩。</span></div>
+            <div class="command-row"><code>/stop</code><span>停止当前角色正在生成的回复。</span></div>
+            <div class="command-row"><code>/chunk &lt;数字&gt;</code><span>调整微信消息分片合并大小；回复被切太碎时再改。</span></div>
+          </div>
+        </article>
+        <article class="card warn">
+          <h3>模型、授权、报告</h3>
+          <div class="command-list">
+            <div class="command-row"><code>/model</code><span>查看当前角色 binding 的模型设置。</span></div>
+            <div class="command-row"><code>/model &lt;id&gt;</code><span>切换当前角色使用的模型。</span></div>
+            <div class="command-row"><code>/yes</code><span>同意当前 approval 一次。</span></div>
+            <div class="command-row"><code>/no</code><span>拒绝当前 approval。</span></div>
+            <div class="command-row"><code>/always</code><span>同意当前 approval；不会开启永久工作区授权。</span></div>
+            <div class="command-row"><code>/dailycard</code><span>生成每日小结长图。</span></div>
+            <div class="command-row"><code>/weeklycard</code><span>生成每周回顾长图。</span></div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>辅助与已禁用</h3>
+          <div class="command-list">
+            <div class="command-row"><code>/help</code><span>列出当前可用命令。</span></div>
+            <div class="command-row"><code>/star</code><span>显示项目 GitHub star 提示。</span></div>
+            <div class="command-row"><code>/reread</code><span>character-only 模式已禁用；每条消息都会重建角色 prompt。</span></div>
+            <div class="command-row"><code>/switch</code><span>character-only 模式已禁用；请用 <code>/char use</code> 切换角色。</span></div>
+            <div class="command-row"><code>/checkin /weekly /userstatus /statuscard</code><span>旧命令；会提示现在应使用的替代命令。</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const MVU_RE = /\[InitVar\]|UpdateVariable|getvar|setvar|stat_data|status_current_variables|StatusPlaceHolderImpl|变量更新|變量更新|更新变量|更新變量|当前变量|當前變量|状态变量|狀態變量|变量状态|變量狀態|状态更新|狀態更新|状态栏|狀態欄|状态栏输出协议|狀態欄輸出協議|内部状态|內部狀態|(?:变量|變量|属性|屬性|数值|數值)\s*[:：=]|<\s*(?:status_bar|internal_update|phone_module|变量更新|變量更新|状态|狀態|思维链|思維鏈)(?:\s|>|\/)|_\.(?:set|get)\s*\(/iu;
+
+    const runtimeDefaults = {
+      codex: { note: "本地 Codex 使用本机默认配置，不需要填写 API 或命令。" },
+      claudecode: { note: "本地 Claude Code 使用本机默认 claude 命令，不需要在这里配置。" },
+      api: { note: "远程 API 适合 OpenAI、Gemini、DeepSeek 或其他兼容 OpenAI Chat Completions 的服务。地址示例：OpenAI https://api.openai.com/v1；Gemini https://generativelanguage.googleapis.com/v1beta/openai；DeepSeek https://api.deepseek.com/v1。" },
+    };
+
+    const reportTemplateFiles = {
+      daily: "daily-diary.html",
+      weekly: "weekly-review.html",
+    };
+
+    const reportTemplateLabels = {
+      daily: "日记",
+      weekly: "周记",
+    };
+
+    const reportTemplateStorageKey = "st-character-wechat-report-templates-v1";
+    const cardDirectoryDbName = "st-character-wechat-manual";
+    const cardDirectoryStoreName = "handles";
+    const cardDirectoryHandleKey = "character-cards";
+    const manualHelperCardsUrl = "http://127.0.0.1:4317/api/character-cards";
+    const manualHelperCardImportUrl = "http://127.0.0.1:4317/api/character-cards/import";
+    const manualHelperEnvUrl = "http://127.0.0.1:4317/api/env";
+    const currentFileProjectRoot = inferCurrentFileProjectRoot();
+    let reportTemplateState = loadReportTemplateState();
+    let cardDirectoryHandle = null;
+
+    const formIds = [
+      "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
+      "dailyWeatherReminderEnabled", "dailyWeatherReminderHour", "apiBaseUrl", "apiKey", "apiModel",
+      "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
+      "memoryRetrievalApiKey", "memoryEmbeddingModel", "memoryRerankModel",
+    ];
+
+    const setupState = {
+      fileName: "",
+      cardName: "",
+      description: "",
+      rawCard: null,
+      sourceType: "",
+      pngBytes: null,
+      entries: [],
+      manualDisabledIds: new Set(),
+      manualDisabledNames: new Set(),
+      manualEnabledIds: new Set(),
+      manualEnabledNames: new Set(),
+    };
+
+    bindTabs();
+    bindCopies();
+    bindRuntimeForm();
+    bindCardScanner();
+    bindWorldbook();
+    bindReportTemplates();
+    void restoreCardDirectoryHandle();
+    void renderReportTemplates();
+    applyRuntimeDefaults("codex", { force: true });
+    renderEnv();
+
+    function bindTabs() {
+      const buttons = Array.from(document.querySelectorAll(".tab-button"));
+      const panels = Array.from(document.querySelectorAll(".panel"));
+      function activate(tab) {
+        for (const button of buttons) {
+          button.setAttribute("aria-selected", String(button.dataset.tab === tab));
+        }
+        for (const panel of panels) {
+          panel.classList.toggle("active", panel.id === tab);
+        }
+        history.replaceState(null, "", `#${tab}`);
+      }
+      for (const button of buttons) button.addEventListener("click", () => activate(button.dataset.tab));
+      const initial = location.hash.replace("#", "");
+      activate(initial && document.getElementById(initial) ? initial : "manual");
+    }
+
+    function bindCopies() {
+      for (const button of document.querySelectorAll("[data-copy-target]")) {
+        button.addEventListener("click", () => {
+          const target = document.getElementById(button.dataset.copyTarget);
+          copyText(target ? target.value || target.textContent || "" : "");
+        });
+      }
+      for (const button of document.querySelectorAll(".save-env-button")) {
+        button.addEventListener("click", saveEnvFile);
+      }
+      document.getElementById("fetchApiModelsButton").addEventListener("click", fetchApiModels);
+      document.getElementById("fetchMemoryModelsButton").addEventListener("click", fetchMemoryModels);
+    }
+
+    function bindRuntimeForm() {
+      const runtimeSelect = document.getElementById("runtimeSelect");
+      runtimeSelect.addEventListener("change", () => {
+        applyRuntimeDefaults(runtimeSelect.value);
+        renderEnv();
+      });
+      for (const id of formIds) {
+        const field = document.getElementById(id);
+        if (field) {
+          field.addEventListener("input", renderEnv);
+          field.addEventListener("change", renderEnv);
+        }
+      }
+      document.getElementById("memoryRetrievalEnabled").addEventListener("change", applyMemoryRetrievalVisibility);
+      document.getElementById("memoryRetrievalRerankEnabled").addEventListener("change", applyMemoryRetrievalVisibility);
+      applyMemoryRetrievalVisibility();
+    }
+
+    function applyRuntimeDefaults(runtime, { force = false } = {}) {
+      const defaults = runtimeDefaults[runtime] || {};
+      const apiBaseUrl = document.getElementById("apiBaseUrl");
+      if (force && defaults.apiBaseUrl) apiBaseUrl.value = defaults.apiBaseUrl;
+      setApiModelOptions([], "");
+      for (const label of document.querySelectorAll("[data-runtime-field]")) {
+        const scopes = String(label.dataset.runtimeField || "").split(/\s+/);
+        label.style.display = scopes.includes(runtime) ? "" : "none";
+      }
+      setStatus("modelFetchStatus", "");
+      document.getElementById("runtimeNote").textContent = defaults.note || "";
+    }
+
+    function applyMemoryRetrievalVisibility() {
+      const enabled = valueOf("memoryRetrievalEnabled") === "true";
+      const rerankEnabled = valueOf("memoryRetrievalRerankEnabled") === "true";
+      for (const element of document.querySelectorAll("[data-memory-retrieval-field]")) {
+        element.style.display = enabled ? "" : "none";
+      }
+      for (const element of document.querySelectorAll("[data-memory-retrieval-disabled]")) {
+        element.style.display = enabled ? "none" : "";
+      }
+      for (const element of document.querySelectorAll("[data-memory-rerank-field]")) {
+        element.style.display = enabled && rerankEnabled ? "" : "none";
+      }
+      if (!enabled) {
+        setStatus("memoryModelFetchStatus", "");
+      }
+      renderEnv();
+    }
+
+    function renderEnv() {
+      const runtime = valueOf("runtimeSelect");
+      const localTimeZone = valueOf("localTimeZone") || "Asia/Shanghai";
+      const memoryRetrievalEnabled = valueOf("memoryRetrievalEnabled") === "true";
+      const memoryRerankEnabled = valueOf("memoryRetrievalRerankEnabled") === "true";
+      const lines = [
+        "# ST Character WeChat 本地配置",
+        "# 只保存在本机，不要提交 .env。",
+        `ST_CHARACTER_WECHAT_RUNTIME=${runtime}`,
+        `ST_CHARACTER_WECHAT_USER_NAME=${valueOf("userName")}`,
+        `ST_CHARACTER_WECHAT_USER_GENDER=${valueOf("userGender") || "female"}`,
+        `ST_CHARACTER_WECHAT_ALLOWED_USER_IDS=${valueOf("allowedUserIds")}`,
+        "ST_CHARACTER_WECHAT_CHARACTER_CARD_DIR=./character-cards",
+        `ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE=${localTimeZone}`,
+        `ST_CHARACTER_WECHAT_LOCAL_LOCATION=${valueOf("localLocation")}`,
+        `ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE=${localTimeZone}`,
+        `ST_CHARACTER_WECHAT_REPORT_TIME_ZONE=${localTimeZone}`,
+        `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED=${valueOf("dailyWeatherReminderEnabled") || "false"}`,
+        `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR=${valueOf("dailyWeatherReminderHour") || "8"}`,
+        `ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED=${memoryRetrievalEnabled ? "true" : "false"}`,
+        "",
+      ];
+      if (memoryRetrievalEnabled) {
+        lines.push("# Long-term memory semantic retrieval");
+        lines.push(`ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL=${valueOf("memoryRetrievalBaseUrl")}`);
+        lines.push(`ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_API_KEY=${valueOf("memoryRetrievalApiKey")}`);
+        lines.push(`ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EMBEDDING_MODEL=${valueOf("memoryEmbeddingModel")}`);
+        lines.push(`ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED=${memoryRerankEnabled ? "true" : "false"}`);
+        if (memoryRerankEnabled) {
+          lines.push(`ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MODEL=${valueOf("memoryRerankModel")}`);
+        }
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_CANDIDATE_LIMIT=30");
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_TOP_K=8");
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_PASSIVE_MIN_SCORE=0.32");
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EXPLICIT_MIN_SCORE=0.12");
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MIN_SCORE=0.05");
+        lines.push("ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_COOLDOWN_HOURS=24");
+        lines.push("");
+      }
+      if (!["codex", "claudecode"].includes(runtime)) {
+        lines.push(`ST_CHARACTER_WECHAT_API_BASE_URL=${valueOf("apiBaseUrl")}`);
+        lines.push(`ST_CHARACTER_WECHAT_API_KEY=${valueOf("apiKey")}`);
+        lines.push(`ST_CHARACTER_WECHAT_API_MODEL=${valueOf("apiModel")}`);
+        lines.push("ST_CHARACTER_WECHAT_API_HISTORY_LIMIT=80");
+      }
+      lines.push("");
+      lines.push("# WeChat");
+      lines.push("ST_CHARACTER_WECHAT_WEIXIN_BASE_URL=https://ilinkai.weixin.qq.com");
+      lines.push("ST_CHARACTER_WECHAT_WEIXIN_CDN_BASE_URL=https://novac2c.cdn.weixin.qq.com/c2c");
+      lines.push("ST_CHARACTER_WECHAT_WEIXIN_QR_BOT_TYPE=3");
+      lines.push("ST_CHARACTER_WECHAT_WEIXIN_MIN_CHUNK_CHARS=20");
+      document.getElementById("envOutput").value = lines.join("\n");
+      setStatus("envSaveStatus", "");
+    }
+
+    async function saveEnvFile() {
+      renderEnv();
+      const activePanelId = getActivePanelId();
+      const text = document.getElementById("envOutput").value;
+      if (!isValidTimeZone(valueOf("localTimeZone") || "Asia/Shanghai")) {
+        setStatus("envSaveStatus", "请选择有效时区。", "warning");
+        return;
+      }
+      if (valueOf("dailyWeatherReminderEnabled") === "true" && !valueOf("localLocation")) {
+        setStatus("envSaveStatus", "开启每日天气/穿衣提醒前，请先填写当前位置。", "warning");
+        return;
+      }
+      if (valueOf("runtimeSelect") === "api") {
+        if (!valueOf("apiBaseUrl") || !valueOf("apiKey")) {
+          setStatus("envSaveStatus", "请先填写 API 地址和 API 密钥。", "warning");
+          return;
+        }
+        if (!valueOf("apiModel")) {
+          setStatus("envSaveStatus", "请先点击“获取模型”，然后选择一个模型。", "warning");
+          return;
+        }
+      }
+      if (valueOf("memoryRetrievalEnabled") === "true") {
+        if (!valueOf("memoryRetrievalBaseUrl") || !valueOf("memoryRetrievalApiKey")) {
+          setStatus("envSaveStatus", "开启长期记忆语义检索后，请先在“模型 / API”页填写检索 API 地址和密钥。", "warning");
+          return;
+        }
+        if (!valueOf("memoryEmbeddingModel")) {
+          setStatus("envSaveStatus", "开启长期记忆语义检索后，请先在“模型 / API”页获取模型并选择 Embedding 模型。", "warning");
+          return;
+        }
+        if (valueOf("memoryRetrievalRerankEnabled") === "true" && !valueOf("memoryRerankModel")) {
+          setStatus("envSaveStatus", "开启 rerank 后，请先在“模型 / API”页选择 Rerank 模型。", "warning");
+          return;
+        }
+      }
+      const confirmed = window.confirm([
+        "将把当前本地设置和模型 / API 设置合并写入项目根目录的 .env。",
+        "",
+        "如果页面里的微信发送者 ID 留空，会保留原 .env 里的 ID。",
+        "切换 API 时会替换旧的远程 API 配置，避免旧 provider 混在一起。",
+        "开启长期记忆语义检索后，会把新增本地记忆写入本地索引；首次开启或更换 embedding 模型时会重建索引。",
+        "开启每日天气/穿衣提醒后，项目会在你选择的小时里每天提醒一次；如果错过，会在当天第一次正常回复里带上提醒。",
+        ".env 可能包含 API 密钥，只保存在本机，不要提交 GitHub。",
+        "如果你是通过 npm run manual 打开的，会直接写入项目根目录 .env。",
+        "如果你是直接双击 HTML 打开的，浏览器会要求你选择 ST_Character_Wechat 项目根目录；不会让你输入文件名，也不会生成 env.env。",
+        "",
+        "继续写入吗？",
+      ].join("\n"));
+      if (!confirmed) {
+        setStatus("envSaveStatus", "已取消，没有写入 .env。", "warning");
+        return;
+      }
+      if (await saveEnvThroughManualHelper(text, { activePanelId })) return;
+      if (window.showDirectoryPicker) {
+        try {
+          const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+          const handle = await directoryHandle.getFileHandle(".env", { create: true });
+          let existingText = "";
+          try {
+            existingText = await (await handle.getFile()).text();
+          } catch {
+            existingText = "";
+          }
+          const mergedText = existingText ? mergeEnvText(existingText, text, { activePanelId }) : `${text.replace(/\s+$/u, "")}\n`;
+          const writable = await handle.createWritable();
+          await writable.write(mergedText);
+          await writable.close();
+          setStatus("envSaveStatus", "已写入所选项目目录的 .env。下一步运行 npm run check 做本地安装自检，然后 npm run login；二维码会显示在运行命令的终端窗口里。", "success");
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            setStatus("envSaveStatus", "已取消，没有写入 .env。", "warning");
+            return;
+          }
+          setStatus("envSaveStatus", `写入失败：${error && error.message ? error.message : String(error)}`, "warning");
+          return;
+        }
+      }
+      if (window.showOpenFilePicker) {
+        try {
+          const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{ description: ".env 文件", accept: { "text/plain": [".env", ".txt"] } }],
+          });
+          const existingText = await (await handle.getFile()).text();
+          const mergedText = mergeEnvText(existingText, text, { activePanelId });
+          const writable = await handle.createWritable();
+          await writable.write(mergedText);
+          await writable.close();
+          setStatus("envSaveStatus", "已合并写入本地 .env。下一步运行 npm run check 做本地安装自检，然后 npm run login；二维码会显示在运行命令的终端窗口里。", "success");
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            setStatus("envSaveStatus", "已取消，没有写入 .env。", "warning");
+            return;
+          }
+          setStatus("envSaveStatus", `写入失败：${error && error.message ? error.message : String(error)}`, "warning");
+          return;
+        }
+      }
+      copyText(text);
+      setStatus("envSaveStatus", "当前浏览器不支持直接写入本地 .env；内容已复制。请在项目根目录创建名为 .env 的文件并粘贴，不要命名成 env.env。", "warning");
+    }
+
+    async function saveEnvThroughManualHelper(text, { activePanelId = "" } = {}) {
+      for (const url of manualHelperEnvUrls()) {
+        try {
+          const existingResponse = await fetch(url, { cache: "no-store" });
+          if (!existingResponse.ok) continue;
+          const existingPayload = await existingResponse.json();
+          if (!existingPayload || existingPayload.ok === false) continue;
+          const existingText = String(existingPayload.content || "");
+          const mergedText = existingText ? mergeEnvText(existingText, text, { activePanelId }) : `${text.replace(/\s+$/u, "")}\n`;
+          const writeResponse = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...currentProjectRootPayload(), content: mergedText }),
+          });
+          const writePayload = await writeResponse.json().catch(() => null);
+          if (!writeResponse.ok || !writePayload || writePayload.ok === false) {
+            throw new Error(writePayload && writePayload.error ? writePayload.error : `HTTP ${writeResponse.status}`);
+          }
+          setStatus("envSaveStatus", `已直接写入项目根目录 .env：${writePayload.path || ".env"}。下一步运行 npm run check 做本地安装自检，然后 npm run login；二维码会显示在运行命令的终端窗口里。`, "success");
+          return true;
+        } catch {
+        }
+      }
+      return false;
+    }
+
+    function manualHelperEnvUrls() {
+      const urls = [];
+      if (/^https?:$/i.test(location.protocol)) {
+        urls.push(withCurrentProjectRootQuery(`${location.origin}/api/env`));
+      }
+      urls.push(withCurrentProjectRootQuery(manualHelperEnvUrl));
+      return Array.from(new Set(urls));
+    }
+
+    function getActivePanelId() {
+      const activePanel = document.querySelector(".panel.active");
+      return activePanel ? activePanel.id : "";
+    }
+
+    async function fetchApiModels() {
+      const runtime = valueOf("runtimeSelect");
+      if (runtime === "codex" || runtime === "claudecode") {
+        setStatus("modelFetchStatus", "本地 Codex / Claude Code 不需要选择模型。", "warning");
+        return;
+      }
+      const baseUrl = valueOf("apiBaseUrl");
+      const apiKey = valueOf("apiKey");
+      if (!baseUrl || !apiKey) {
+        setStatus("modelFetchStatus", "请先填写 API 地址和 API 密钥。", "warning");
+        return;
+      }
+      const button = document.getElementById("fetchApiModelsButton");
+      button.disabled = true;
+      setStatus("modelFetchStatus", "正在从 API 获取模型列表...");
+      try {
+        const response = await fetch(buildApiModelsUrl(baseUrl), {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        const text = await response.text();
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${text.slice(0, 160)}`);
+        const models = extractApiModels(JSON.parse(text));
+        if (!models.length) throw new Error("响应里没有可选择的模型 id。");
+        setApiModelOptions(models, valueOf("apiModel") || models[0]);
+        renderEnv();
+        setStatus("modelFetchStatus", `已获取 ${models.length} 个模型。`, "success");
+      } catch (error) {
+        setStatus("modelFetchStatus", `获取失败：${error && error.message ? error.message : String(error)}`, "warning");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function fetchMemoryModels() {
+      if (valueOf("memoryRetrievalEnabled") !== "true") {
+        setStatus("memoryModelFetchStatus", "请先在“模型 / API”里开启长期记忆语义检索。", "warning");
+        return;
+      }
+      const baseUrl = valueOf("memoryRetrievalBaseUrl");
+      const apiKey = valueOf("memoryRetrievalApiKey");
+      if (!baseUrl || !apiKey) {
+        setStatus("memoryModelFetchStatus", "请先填写检索 API 地址和密钥。", "warning");
+        return;
+      }
+      const button = document.getElementById("fetchMemoryModelsButton");
+      button.disabled = true;
+      setStatus("memoryModelFetchStatus", "正在从检索 API 获取模型列表...");
+      try {
+        const response = await fetch(buildApiModelsUrl(baseUrl), {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        const text = await response.text();
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}: ${text.slice(0, 160)}`);
+        const models = extractApiModels(JSON.parse(text));
+        if (!models.length) throw new Error("响应里没有可选择的模型 id。");
+        setMemoryModelOptions(models, valueOf("memoryEmbeddingModel") || guessModel(models, "embed"), valueOf("memoryRerankModel") || guessModel(models, "rerank"));
+        renderEnv();
+        setStatus("memoryModelFetchStatus", `已获取 ${models.length} 个模型。请分别选择 embedding 和 rerank 模型。`, "success");
+      } catch (error) {
+        setStatus("memoryModelFetchStatus", `获取失败：${error && error.message ? error.message : String(error)}`, "warning");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function buildApiModelsUrl(baseUrl) {
+      const normalized = String(baseUrl || "").trim().replace(/\/+$/, "");
+      if (/\/chat\/completions$/i.test(normalized)) return normalized.replace(/\/chat\/completions$/i, "/models");
+      if (/\/(?:embeddings|rerank)$/i.test(normalized)) return normalized.replace(/\/(?:embeddings|rerank)$/i, "/models");
+      return `${normalized}/models`;
+    }
+
+    function extractApiModels(payload) {
+      const source = Array.isArray(payload?.data) ? payload.data
+        : Array.isArray(payload?.models) ? payload.models
+          : Array.isArray(payload) ? payload
+            : [];
+      return Array.from(new Set(source
+        .map((item) => normalizeText(item?.id || item?.name || item?.model))
+        .filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right));
+    }
+
+    function setApiModelOptions(models, selected) {
+      setModelSelectOptions("apiModel", models, selected);
+    }
+
+    function setMemoryModelOptions(models, selectedEmbedding, selectedRerank) {
+      setModelSelectOptions("memoryEmbeddingModel", models, selectedEmbedding);
+      setModelSelectOptions("memoryRerankModel", models, selectedRerank);
+    }
+
+    function setModelSelectOptions(selectId, models, selected) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const cleanModels = Array.from(new Set((models || []).map(normalizeText).filter(Boolean)));
+      const selectedValue = normalizeText(selected);
+      if (selectedValue && !cleanModels.includes(selectedValue)) cleanModels.unshift(selectedValue);
+      select.innerHTML = "";
+      if (!cleanModels.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "先获取模型列表";
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+      }
+      for (const model of cleanModels) {
+        const option = document.createElement("option");
+        option.value = model;
+        option.textContent = model;
+        select.appendChild(option);
+      }
+      select.value = selectedValue || cleanModels[0];
+      select.disabled = false;
+    }
+
+    function guessModel(models, kind) {
+      const cleanModels = (models || []).map(normalizeText).filter(Boolean);
+      const pattern = kind === "rerank" ? /rerank|ranker|bge-reranker|bce-reranker/iu : /embed|embedding|bge-|gte-|e5-|qwen.*emb/iu;
+      return cleanModels.find((model) => pattern.test(model)) || cleanModels[0] || "";
+    }
+
+    function mergeEnvText(existingText, generatedText, { activePanelId = "" } = {}) {
+      const generated = parseEnvMap(generatedText);
+      const existing = parseEnvMap(existingText);
+      if (!normalizeText(generated.ST_CHARACTER_WECHAT_ALLOWED_USER_IDS) && normalizeText(existing.ST_CHARACTER_WECHAT_ALLOWED_USER_IDS)) {
+        generated.ST_CHARACTER_WECHAT_ALLOWED_USER_IDS = existing.ST_CHARACTER_WECHAT_ALLOWED_USER_IDS;
+      }
+      const localSettingKeys = [
+        "ST_CHARACTER_WECHAT_USER_NAME",
+        "ST_CHARACTER_WECHAT_USER_GENDER",
+        "ST_CHARACTER_WECHAT_ALLOWED_USER_IDS",
+        "ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_LOCAL_LOCATION",
+        "ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_REPORT_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+      ];
+      const modelSettingKeys = [
+        "ST_CHARACTER_WECHAT_RUNTIME",
+        "ST_CHARACTER_WECHAT_API_BASE_URL",
+        "ST_CHARACTER_WECHAT_API_KEY",
+        "ST_CHARACTER_WECHAT_API_MODEL",
+        "ST_CHARACTER_WECHAT_API_HISTORY_LIMIT",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_API_KEY",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EMBEDDING_MODEL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MODEL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_CANDIDATE_LIMIT",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_TOP_K",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_PASSIVE_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EXPLICIT_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_COOLDOWN_HOURS",
+      ];
+      const keysToPreserve = activePanelId === "api-config"
+        ? localSettingKeys
+        : activePanelId === "runtime"
+          ? modelSettingKeys
+          : [];
+      for (const key of keysToPreserve) {
+        if (Object.prototype.hasOwnProperty.call(existing, key)) {
+          generated[key] = existing[key];
+        }
+      }
+      const managedKeys = new Set([
+        "ST_CHARACTER_WECHAT_RUNTIME",
+        "ST_CHARACTER_WECHAT_USER_NAME",
+        "ST_CHARACTER_WECHAT_USER_GENDER",
+        "ST_CHARACTER_WECHAT_ALLOWED_USER_IDS",
+        "ST_CHARACTER_WECHAT_CHARACTER_CARD_DIR",
+        "ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_LOCAL_LOCATION",
+        "ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_REPORT_TIME_ZONE",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
+        "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_API_KEY",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EMBEDDING_MODEL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MODEL",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_CANDIDATE_LIMIT",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_TOP_K",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_PASSIVE_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EXPLICIT_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MIN_SCORE",
+        "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_COOLDOWN_HOURS",
+        "ST_CHARACTER_WECHAT_CODEX_ENDPOINT",
+        "ST_CHARACTER_WECHAT_CODEX_COMMAND",
+        "ST_CHARACTER_WECHAT_CLAUDE_COMMAND",
+        "ST_CHARACTER_WECHAT_CLAUDE_MODEL",
+        "ST_CHARACTER_WECHAT_API_BASE_URL",
+        "ST_CHARACTER_WECHAT_API_KEY",
+        "ST_CHARACTER_WECHAT_API_MODEL",
+        "ST_CHARACTER_WECHAT_API_HISTORY_LIMIT",
+        "ST_CHARACTER_WECHAT_WEIXIN_BASE_URL",
+        "ST_CHARACTER_WECHAT_WEIXIN_CDN_BASE_URL",
+        "ST_CHARACTER_WECHAT_WEIXIN_QR_BOT_TYPE",
+        "ST_CHARACTER_WECHAT_WEIXIN_MIN_CHUNK_CHARS",
+      ]);
+      const used = new Set();
+      const output = [];
+      for (const line of String(existingText || "").split(/\r?\n/)) {
+        const key = parseEnvKey(line);
+        if (!key) {
+          output.push(line);
+          continue;
+        }
+        if (Object.prototype.hasOwnProperty.call(generated, key)) {
+          output.push(formatEnvLine(key, generated[key]));
+          used.add(key);
+          continue;
+        }
+        if (!managedKeys.has(key)) output.push(line);
+      }
+      const generatedOrder = Object.keys(generated);
+      const missing = generatedOrder.filter((key) => !used.has(key));
+      if (missing.length && output.length && output[output.length - 1].trim()) output.push("");
+      for (const key of missing) output.push(formatEnvLine(key, generated[key]));
+      while (output.length && !output[output.length - 1].trim()) output.pop();
+      return `${output.join("\n")}\n`;
+    }
+
+    function parseEnvMap(text) {
+      const map = {};
+      for (const line of String(text || "").split(/\r?\n/)) {
+        const key = parseEnvKey(line);
+        if (!key) continue;
+        map[key] = line.slice(line.indexOf("=") + 1).trim();
+      }
+      return map;
+    }
+
+    function parseEnvKey(line) {
+      const text = String(line || "");
+      if (!text.trim() || text.trim().startsWith("#")) return "";
+      const match = text.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+      return match ? match[1] : "";
+    }
+
+    function formatEnvLine(key, value) {
+      return `${key}=${String(value || "").trim()}`;
+    }
+
+    function bindCardScanner() {
+      document.getElementById("scanCardDirectoryButton").addEventListener("click", scanOrPickCardDirectory);
+      document.getElementById("importCardsButton").addEventListener("click", () => {
+        document.getElementById("cardImportInput").click();
+      });
+      document.getElementById("cardImportInput").addEventListener("change", async (event) => {
+        const files = Array.from(event.target.files || []);
+        await importCardsIntoFixedDirectory(files);
+        event.target.value = "";
+      });
+      document.getElementById("cardDirectoryInput").addEventListener("change", (event) => {
+        const files = Array.from(event.target.files || [])
+          .filter(isImportableCardFile)
+          .map((file) => ({ name: file.name, path: file.webkitRelativePath || file.name }))
+          .sort((left, right) => left.path.localeCompare(right.path));
+        renderCardScanResults(files, "已通过手动选择扫描。");
+      });
+    }
+
+    async function importCardsIntoFixedDirectory(files) {
+      const cardFiles = files.filter(isImportableCardFile);
+      if (!cardFiles.length) {
+        setStatus("cardImportStatus", "没有选择可导入的 .json 或 .png 角色卡。", "warning");
+        return;
+      }
+      setStatus("cardImportStatus", `正在导入 ${cardFiles.length} 张角色卡...`);
+      const written = [];
+      try {
+        for (const file of cardFiles) {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const result = await writeCharacterCardToFixedDirectory(file.name, bytes);
+          written.push(result.written?.name || file.name);
+        }
+        setStatus("cardImportStatus", `已导入 ${written.length} 张角色卡：${written.join("、")}`, "success");
+        await refreshCardDirectoryList();
+      } catch (error) {
+        setStatus("cardImportStatus", `导入失败：${error && error.message ? error.message : String(error)}`, "warning");
+      }
+    }
+
+    async function scanOrPickCardDirectory() {
+      if (await scanFixedCardDirectoryFromHelper()) return;
+      if (cardDirectoryHandle) {
+        await scanCardDirectoryHandle({ requestPermission: true, fallbackToPicker: false });
+        return;
+      }
+      await pickCardDirectory();
+    }
+
+    async function pickCardDirectory() {
+      if (!window.showDirectoryPicker) {
+        document.getElementById("cardDirectoryInput").click();
+        return;
+      }
+      try {
+        const handle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "read" });
+        cardDirectoryHandle = handle;
+        await saveCardDirectoryHandle(handle);
+        await scanCardDirectoryHandle({ requestPermission: true });
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          setStatus("cardScanStatus", "已取消，没有扫描文件夹。", "warning");
+          return;
+        }
+        setStatus("cardScanStatus", `扫描失败：${error && error.message ? error.message : String(error)}`, "warning");
+      }
+    }
+
+    async function restoreCardDirectoryHandle() {
+      if (await scanFixedCardDirectoryFromHelper({ silent: true })) return;
+      cardDirectoryHandle = await loadCardDirectoryHandle();
+      if (!cardDirectoryHandle) {
+        setStatus("cardScanStatus", "固定目录是 ST_Character_Wechat/character-cards。点击“扫描固定 character-cards”会扫描这个目录；如果浏览器需要授权，只需确认一次。");
+        return;
+      }
+      const permission = await queryCardDirectoryPermission(cardDirectoryHandle);
+      if (permission === "granted") {
+        await scanCardDirectoryHandle({ requestPermission: false });
+        return;
+      }
+      setStatus("cardScanStatus", "浏览器记得上次授权的固定角色卡目录。点击“扫描固定 character-cards”后会直接扫描。");
+    }
+
+    async function scanFixedCardDirectoryFromHelper({ silent = false } = {}) {
+      const urls = [];
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        urls.push(withCurrentProjectRootQuery(`${location.origin}/api/character-cards`));
+      }
+      urls.push(withCurrentProjectRootQuery(manualHelperCardsUrl));
+      if (!silent) setStatus("cardScanStatus", "正在扫描固定目录 ST_Character_Wechat/character-cards...");
+      for (const url of Array.from(new Set(urls))) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) continue;
+          const payload = await response.json();
+          if (!payload || payload.ok === false || !Array.isArray(payload.files)) continue;
+          renderCardScanResults(payload.files, `已扫描固定目录：${helperFolderLabel(payload)}。`);
+          return true;
+        } catch {
+        }
+      }
+      if (!silent) {
+        setStatus("cardScanStatus", "还不能直接扫描固定目录。请确认已在项目根目录运行 npm run manual；如果直接打开 HTML，浏览器会要求首次授权一次。", "warning");
+      }
+      return false;
+    }
+
+    async function refreshCardDirectoryList() {
+      if (await scanFixedCardDirectoryFromHelper({ silent: true })) return true;
+      if (cardDirectoryHandle) {
+        await scanCardDirectoryHandle({ requestPermission: false });
+        return true;
+      }
+      return false;
+    }
+
+    function manualHelperImportUrls() {
+      const urls = [];
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        urls.push(`${location.origin}/api/character-cards/import`);
+      }
+      urls.push(manualHelperCardImportUrl);
+      return Array.from(new Set(urls));
+    }
+
+    async function writeCharacterCardToFixedDirectory(fileName, bytes) {
+      const safeName = buildSafeCardFileName(fileName);
+      const payload = {
+        ...currentProjectRootPayload(),
+        name: safeName,
+        contentBase64: bytesToBase64(bytes),
+      };
+      for (const url of manualHelperImportUrls()) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) continue;
+          const result = await response.json();
+          if (result && result.ok !== false && result.written) {
+            if (Array.isArray(result.files)) renderCardScanResults(result.files, `已扫描固定目录：${helperFolderLabel(result)}。`);
+            return result;
+          }
+        } catch {
+        }
+      }
+
+      const written = await writeCharacterCardThroughDirectoryHandle(safeName, bytes);
+      return { ok: true, written };
+    }
+
+    async function writeCharacterCardThroughDirectoryHandle(fileName, bytes) {
+      if (!window.showDirectoryPicker && !cardDirectoryHandle) {
+        throw new Error("请用 npm run manual 打开本页；直接双击 HTML 时浏览器不能直接写入固定目录。");
+      }
+      if (!cardDirectoryHandle) {
+        cardDirectoryHandle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "readwrite" });
+        await saveCardDirectoryHandle(cardDirectoryHandle);
+      }
+      const granted = await requestCardDirectoryWritePermission(cardDirectoryHandle);
+      if (!granted) {
+        throw new Error("浏览器没有写入 character-cards 的授权。");
+      }
+      const finalName = await resolveWritableHandleFileName(cardDirectoryHandle, fileName);
+      const handle = await cardDirectoryHandle.getFileHandle(finalName, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([bytes]));
+      await writable.close();
+      return {
+        name: finalName,
+        path: finalName,
+        size: bytes.length,
+        lastModified: Date.now(),
+      };
+    }
+
+    async function resolveWritableHandleFileName(directoryHandle, fileName) {
+      const parsed = splitFileName(fileName);
+      let candidate = fileName;
+      let index = 2;
+      while (await directoryHandleHasFile(directoryHandle, candidate)) {
+        candidate = `${parsed.name}-${index}${parsed.extension}`;
+        index += 1;
+      }
+      return candidate;
+    }
+
+    async function directoryHandleHasFile(directoryHandle, fileName) {
+      try {
+        await directoryHandle.getFileHandle(fileName, { create: false });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function scanCardDirectoryHandle({ requestPermission = false, fallbackToPicker = false } = {}) {
+      if (!cardDirectoryHandle) {
+        if (fallbackToPicker) {
+          await pickCardDirectory();
+          return;
+        }
+        setStatus("cardScanStatus", "固定目录是 ST_Character_Wechat/character-cards。浏览器还没有这个目录的授权记录，首次需要确认一次；之后打开本页会自动扫描。", "warning");
+        return;
+      }
+      const granted = requestPermission
+        ? await requestCardDirectoryPermission(cardDirectoryHandle)
+        : await queryCardDirectoryPermission(cardDirectoryHandle) === "granted";
+      if (!granted) {
+        if (fallbackToPicker) {
+          await pickCardDirectory();
+          return;
+        }
+        setStatus("cardScanStatus", "浏览器需要重新确认后才能扫描这个文件夹。", "warning");
+        return;
+      }
+      try {
+        const files = await collectCardDirectoryFiles(cardDirectoryHandle);
+        const folderName = cardDirectoryHandle.name || "character-cards";
+        const prefix = folderName === "character-cards"
+          ? "已扫描 character-cards。"
+          : `已扫描 ${folderName}。建议选择项目里的 character-cards 文件夹。`;
+        renderCardScanResults(files, prefix);
+      } catch (error) {
+        setStatus("cardScanStatus", `扫描失败：${error && error.message ? error.message : String(error)}`, "warning");
+      }
+    }
+
+    async function collectCardDirectoryFiles(directoryHandle, basePath = "") {
+      const files = [];
+      for await (const [name, handle] of directoryHandle.entries()) {
+        const path = basePath ? `${basePath}/${name}` : name;
+        if (handle.kind === "directory") {
+          files.push(...await collectCardDirectoryFiles(handle, path));
+          continue;
+        }
+        if (!/\.(json|png)$/i.test(name) || /\.override\.json$/i.test(name)) continue;
+        const file = await handle.getFile();
+        files.push({ name: file.name, path, size: file.size, lastModified: file.lastModified });
+      }
+      return files.sort((left, right) => left.path.localeCompare(right.path));
+    }
+
+    function renderCardScanResults(files, prefix = "") {
+      const list = document.getElementById("cardScanResults");
+      list.innerHTML = "";
+      document.getElementById("cardScanStatus").textContent = files.length
+        ? `${prefix} 扫描到 ${files.length} 张候选角色卡。`
+        : `${prefix} 没有找到 .json 或 .png 角色卡。`;
+      for (const file of files.slice(0, 200)) {
+        const row = document.createElement("div");
+        row.className = "scan-row";
+        row.innerHTML = `<strong>${escapeHtml(file.name)}</strong><span>${escapeHtml(file.path || file.name)}</span>`;
+        list.appendChild(row);
+      }
+      if (files.length > 200) {
+        const row = document.createElement("div");
+        row.className = "scan-row";
+        row.innerHTML = `<strong>还有 ${files.length - 200} 张未显示</strong><span>运行时仍会读取完整目录。</span>`;
+        list.appendChild(row);
+      }
+    }
+
+    async function queryCardDirectoryPermission(handle) {
+      if (!handle || !handle.queryPermission) return "prompt";
+      try {
+        return await handle.queryPermission({ mode: "read" });
+      } catch {
+        return "prompt";
+      }
+    }
+
+    async function requestCardDirectoryPermission(handle) {
+      if (!handle) return false;
+      if (!handle.requestPermission) return true;
+      try {
+        return await handle.requestPermission({ mode: "read" }) === "granted";
+      } catch {
+        return false;
+      }
+    }
+
+    async function requestCardDirectoryWritePermission(handle) {
+      if (!handle) return false;
+      if (!handle.requestPermission) return true;
+      try {
+        return await handle.requestPermission({ mode: "readwrite" }) === "granted";
+      } catch {
+        return false;
+      }
+    }
+
+    async function saveCardDirectoryHandle(handle) {
+      if (!("indexedDB" in window)) return;
+      try {
+        const db = await openCardDirectoryDb();
+        await transactCardDirectoryHandle(db, "readwrite", (store) => store.put(handle, cardDirectoryHandleKey));
+        db.close();
+      } catch {
+      }
+    }
+
+    async function loadCardDirectoryHandle() {
+      if (!("indexedDB" in window)) return null;
+      try {
+        const db = await openCardDirectoryDb();
+        const handle = await transactCardDirectoryHandle(db, "readonly", (store) => store.get(cardDirectoryHandleKey));
+        db.close();
+        return handle || null;
+      } catch {
+        return null;
+      }
+    }
+
+    function openCardDirectoryDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(cardDirectoryDbName, 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(cardDirectoryStoreName)) db.createObjectStore(cardDirectoryStoreName);
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function transactCardDirectoryHandle(db, mode, action) {
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(cardDirectoryStoreName, mode);
+        const request = action(transaction.objectStore(cardDirectoryStoreName));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+        transaction.onerror = () => reject(transaction.error);
+      });
+    }
+
+    function bindWorldbook() {
+      document.getElementById("cardFile").addEventListener("change", async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+          const loaded = await readCardFile(file);
+          loadCard(loaded.rawCard, file.name, loaded);
+        } catch (error) {
+          resetCard(String(error && error.message ? error.message : error));
+        }
+      });
+      document.getElementById("entrySearch").addEventListener("input", renderEntries);
+      document.getElementById("copyOverrideButton").addEventListener("click", () => copyText(document.getElementById("overrideOutput").value));
+      document.getElementById("saveModifiedCardButton").addEventListener("click", async () => {
+        await saveModifiedCardToFixedDirectory();
+      });
+      document.getElementById("downloadOverrideButton").addEventListener("click", async () => {
+        await downloadModifiedCard();
+      });
+    }
+
+    function bindReportTemplates() {
+      document.getElementById("reportKindSelect").addEventListener("change", () => {
+        void renderReportTemplates();
+      });
+      document.getElementById("reportActiveTemplateSelect").addEventListener("change", () => {
+        const kind = currentReportKind();
+        reportTemplateState.active[kind] = document.getElementById("reportActiveTemplateSelect").value;
+        saveReportTemplateState();
+        void renderReportTemplates();
+      });
+      document.getElementById("reportTemplateInput").addEventListener("change", async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+        const kind = currentReportKind();
+        for (const file of files) {
+          const text = await file.text();
+          const template = {
+            id: `custom-${kind}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            kind,
+            name: file.name.replace(/\.(html|css)$/i, "") || `${reportTemplateLabels[kind]}自定义模板`,
+            fileName: file.name.endsWith(".html") ? file.name : reportTemplateFiles[kind],
+            text,
+            builtin: false,
+          };
+          reportTemplateState.templates.push(template);
+          reportTemplateState.active[kind] = template.id;
+        }
+        event.target.value = "";
+        saveReportTemplateState();
+        await renderReportTemplates();
+        setStatus("reportTemplateStatus", `已导入 ${files.length} 个${reportTemplateLabels[kind]}模板，并设为当前生效模板。`, "success");
+      });
+      document.getElementById("loadBuiltinTemplateButton").addEventListener("click", async () => {
+        const kind = currentReportKind();
+        const confirmed = window.confirm(`确认切换回内置默认${reportTemplateLabels[kind]}模板吗？当前模板的浏览器草稿会保留，可以之后再切回来。`);
+        if (!confirmed) {
+          setStatus("reportTemplateStatus", "已取消，没有切换模板。", "warning");
+          return;
+        }
+        reportTemplateState.active[kind] = builtinReportTemplateId(kind);
+        saveReportTemplateState();
+        await renderReportTemplates();
+        setStatus("reportTemplateStatus", `已恢复内置默认${reportTemplateLabels[kind]}模板为当前生效模板。`, "success");
+      });
+      document.getElementById("exportActiveTemplateButton").addEventListener("click", exportActiveReportTemplate);
+      document.getElementById("deleteCustomTemplateButton").addEventListener("click", async () => {
+        const template = currentReportTemplate();
+        if (!template || template.builtin) {
+          setStatus("reportTemplateStatus", "内置默认模板不能删除。", "warning");
+          return;
+        }
+        reportTemplateState.templates = reportTemplateState.templates.filter((item) => item.id !== template.id);
+        reportTemplateState.active[template.kind] = builtinReportTemplateId(template.kind);
+        saveReportTemplateState();
+        await renderReportTemplates();
+        setStatus("reportTemplateStatus", `已删除 ${template.name}，当前生效模板已恢复为内置默认模板。`, "success");
+      });
+      document.getElementById("copyReportTemplateButton").addEventListener("click", () => copyText(document.getElementById("reportTemplateEditor").value));
+      document.getElementById("saveProjectTemplateButton").addEventListener("click", saveActiveTemplateToProject);
+      document.getElementById("restoreOriginalTemplateButton").addEventListener("click", restoreOriginalReportTemplate);
+      document.getElementById("reportTemplateEditor").addEventListener("input", saveReportTemplateDraft);
+    }
+
+    function loadReportTemplateState() {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(localStorage.getItem(reportTemplateStorageKey) || "null");
+      } catch {
+        parsed = null;
+      }
+      return normalizeReportTemplateState(parsed);
+    }
+
+    function normalizeReportTemplateState(state) {
+      const next = state && typeof state === "object" ? state : {};
+      const templates = Array.isArray(next.templates) ? next.templates.filter((template) => template && typeof template === "object") : [];
+      const drafts = next.drafts && typeof next.drafts === "object" && !Array.isArray(next.drafts) ? next.drafts : {};
+      for (const kind of Object.keys(reportTemplateFiles)) {
+        if (!templates.some((template) => template.id === builtinReportTemplateId(kind))) {
+          templates.unshift(createBuiltinReportTemplate(kind));
+        }
+      }
+      const active = next.active && typeof next.active === "object" ? next.active : {};
+      for (const kind of Object.keys(reportTemplateFiles)) {
+        const activeId = typeof active[kind] === "string" ? active[kind] : "";
+        if (!templates.some((template) => template.kind === kind && template.id === activeId)) {
+          active[kind] = builtinReportTemplateId(kind);
+        }
+      }
+      return { active, templates, drafts };
+    }
+
+    function createBuiltinReportTemplate(kind) {
+      return {
+        id: builtinReportTemplateId(kind),
+        kind,
+        name: `内置默认${reportTemplateLabels[kind]}模板`,
+        fileName: reportTemplateFiles[kind],
+        text: "",
+        builtin: true,
+      };
+    }
+
+    function builtinReportTemplateId(kind) {
+      return `builtin-${kind}`;
+    }
+
+    function saveReportTemplateState() {
+      localStorage.setItem(reportTemplateStorageKey, JSON.stringify(reportTemplateState));
+    }
+
+    async function renderReportTemplates() {
+      reportTemplateState = normalizeReportTemplateState(reportTemplateState);
+      const kind = currentReportKind();
+      const select = document.getElementById("reportActiveTemplateSelect");
+      select.innerHTML = "";
+      for (const template of reportTemplateState.templates.filter((item) => item.kind === kind)) {
+        const option = document.createElement("option");
+        option.value = template.id;
+        option.textContent = template.builtin ? `${template.name} (${template.fileName})` : `${template.name} (${template.fileName})`;
+        select.appendChild(option);
+      }
+      select.value = reportTemplateState.active[kind] || builtinReportTemplateId(kind);
+      const template = currentReportTemplate();
+      document.getElementById("deleteCustomTemplateButton").disabled = !template || template.builtin;
+      const baseText = template ? await resolveReportTemplateText(template) : "";
+      const draftText = getReportTemplateDraft(template);
+      document.getElementById("reportTemplateEditor").value = draftText === null ? baseText : draftText;
+      renderReportTemplateDraftStatus(template, draftText !== null);
+    }
+
+    function currentReportKind() {
+      return document.getElementById("reportKindSelect").value || "daily";
+    }
+
+    function currentReportTemplate() {
+      const kind = currentReportKind();
+      const activeId = reportTemplateState.active[kind] || builtinReportTemplateId(kind);
+      return reportTemplateState.templates.find((template) => template.kind === kind && template.id === activeId)
+        || createBuiltinReportTemplate(kind);
+    }
+
+    async function resolveReportTemplateText(template) {
+      if (template && template.text) return template.text;
+      if (!template || !template.builtin) return "";
+      if (location.protocol === "file:") {
+        return buildReportSkeleton(template.kind);
+      }
+      try {
+        const response = await fetch(`templates/cards/${template.fileName}`, { cache: "no-store" });
+        if (response.ok) return await response.text();
+      } catch {
+        // file:// pages may not be allowed to fetch sibling files.
+      }
+      return buildReportSkeleton(template.kind);
+    }
+
+    async function saveActiveTemplateToProject() {
+      const kind = currentReportKind();
+      const template = currentReportTemplate();
+      const text = document.getElementById("reportTemplateEditor").value;
+      if (!text.trim()) {
+        setStatus("reportTemplateStatus", "请先选择、导入或编辑模板。", "warning");
+        return;
+      }
+      const fileName = buildReportTemplateExportFileName(kind, template);
+      downloadText(fileName, text);
+      setStatus("reportTemplateStatus", `已导出新模板文件 ${fileName}，不会覆盖内置模板。要让项目使用它，请放进自定义模板目录，并在 .env 设置 ST_CHARACTER_WECHAT_REPORT_CARD_TEMPLATE_DIR。`, "success");
+    }
+
+    function exportActiveReportTemplate() {
+      const template = currentReportTemplate();
+      const text = document.getElementById("reportTemplateEditor").value;
+      if (!template || !text.trim()) {
+        setStatus("reportTemplateStatus", "请先选择生效模板。", "warning");
+        return;
+      }
+      downloadText(template.fileName || reportTemplateFiles[currentReportKind()], text);
+      setStatus("reportTemplateStatus", `已导出 ${template.name}。`, "success");
+    }
+
+    function saveReportTemplateDraft() {
+      const template = currentReportTemplate();
+      if (!template) return;
+      const text = document.getElementById("reportTemplateEditor").value;
+      const key = reportTemplateDraftKey(template);
+      reportTemplateState.drafts[key] = text;
+      saveReportTemplateState();
+      renderReportTemplateDraftStatus(template, true);
+    }
+
+    async function restoreOriginalReportTemplate() {
+      const template = currentReportTemplate();
+      if (!template) return;
+      const sourceName = template.builtin ? "内置默认模板" : "导入时的模板版本";
+      const confirmed = window.confirm(`确认恢复原本模板吗？\n\n这会清空当前编辑框里的浏览器草稿，并恢复为${sourceName}。`);
+      if (!confirmed) {
+        setStatus("reportTemplateStatus", "已取消，草稿没有变化。", "warning");
+        return;
+      }
+      clearReportTemplateDraft(template);
+      saveReportTemplateState();
+      document.getElementById("reportTemplateEditor").value = await resolveReportTemplateText(template);
+      renderReportTemplateDraftStatus(template, false);
+      setStatus("reportTemplateStatus", "已恢复原本模板。", "success");
+    }
+
+    function getReportTemplateDraft(template) {
+      if (!template) return null;
+      const key = reportTemplateDraftKey(template);
+      return Object.prototype.hasOwnProperty.call(reportTemplateState.drafts, key)
+        ? String(reportTemplateState.drafts[key] || "")
+        : null;
+    }
+
+    function clearReportTemplateDraft(template) {
+      if (!template) return;
+      delete reportTemplateState.drafts[reportTemplateDraftKey(template)];
+    }
+
+    function reportTemplateDraftKey(template) {
+      return `${template.kind}:${template.id}`;
+    }
+
+    function renderReportTemplateDraftStatus(template, hasDraft) {
+      const status = document.getElementById("reportTemplateDraftStatus");
+      if (!status) return;
+      if (!template) {
+        status.textContent = "";
+        return;
+      }
+      status.textContent = hasDraft
+        ? "已自动保存浏览器草稿。需要给项目使用时，请导出新模板文件。"
+        : "当前显示的是原本模板。编辑后会自动保存为浏览器草稿。";
+      status.classList.toggle("success", hasDraft);
+      status.classList.toggle("warning", false);
+    }
+
+    function buildReportTemplateExportFileName(kind, template) {
+      const base = kind === "weekly" ? "weekly-review" : "daily-diary";
+      const name = normalizeText(template?.name || reportTemplateLabels[kind] || "template")
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+        .replace(/\s+/g, "-")
+        .slice(0, 40);
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+      return `${base}.${name || "custom"}.${stamp}.html`;
+    }
+
+    function buildReportSkeleton(kind) {
+      const isWeekly = kind === "weekly";
+      const fields = isWeekly
+        ? "dateRange, startDate, endDate, summary, statusTags, dailyRecords, dailyRecords[].date, dailyRecords[].weekday, dailyRecords[].items[].text, dailyRecords[].items[].progressPercent, dailyRecords[].sleepScore, dailyRecords[].stressScore, dailyRecords[].completionPercent；自定义可选：title, generatedAt, userName, weekMatters, metrics, weeklyTrend, closing"
+        : "date, generatedAt, title, summary, moodLabel, moodEmoji, moodDetail, stateOverview, topics, keyFacts, chatExcerpts, supplemental, timeDistribution, energyTrend, tags；兼容别名：representativeQuotes";
+      return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${isWeekly ? "每周回顾" : "每日小结"}</title>
+  <style>
+    body { margin: 0; min-width: 720px; background: #eef1f2; color: #172023; font-family: "Microsoft YaHei", sans-serif; }
+    .report { width: 664px; margin: 0 auto; padding: 32px; background: white; }
+    h1 { margin: 0 0 12px; font-size: 34px; }
+    .muted { color: #5f6b6f; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .card { border: 1px solid #d5dddf; padding: 14px; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <h1 id="title"></h1>
+    <p class="muted" id="dateText"></p>
+    <section class="card"><h2>摘要</h2><p id="summary"></p></section>
+    ${isWeekly ? '<section class="card"><h2>每日记录</h2><div id="dailyRecords"></div></section>' : '<section class="card"><h2>心情</h2><p id="mood"></p></section><section class="card"><h2>聊天摘录</h2><div id="chatExcerpts"></div></section>'}
+    <section class="grid" id="metrics"></section>
+  </main>
+  <script id="card-data" type="application/json">__CARD_DATA_JSON__<\/script>
+  <script>
+    const data = JSON.parse(document.getElementById("card-data").textContent || "{}");
+    document.getElementById("title").textContent = data.title || "${isWeekly ? "每周回顾" : "每日小结"}";
+    document.getElementById("dateText").textContent = data.dateRange || data.date || "";
+    document.getElementById("summary").textContent = data.summary || "";
+    ${isWeekly
+      ? 'document.getElementById("dailyRecords").innerHTML = (data.dailyRecords || []).map((day) => "<article><strong>" + escapeHtml([day.weekday, day.date].filter(Boolean).join(" ")) + "</strong><p>" + escapeHtml(day.summary || "") + "</p><ul>" + (day.items || []).map((item) => "<li>" + escapeHtml(item.text || item.title || "") + " · " + escapeHtml(item.progressPercent || day.completionPercent || 0) + "%</li>").join("") + "</ul></article>").join("");'
+      : 'document.getElementById("mood").textContent = [data.moodEmoji, data.moodLabel, data.moodDetail].filter(Boolean).join(" "); document.getElementById("chatExcerpts").innerHTML = (data.chatExcerpts || data.representativeQuotes || []).map((item) => "<blockquote>" + escapeHtml(item) + "</blockquote>").join("");'}
+    const metricSource = data.metrics || data.stateOverview || [];
+    document.getElementById("metrics").innerHTML = metricSource.map((item) => (
+      '<article class="card"><strong>' + escapeHtml(item.label || "") + '</strong><p>' + escapeHtml(item.value || "") + '</p><p class="muted">' + escapeHtml(item.detail || "") + '</p></article>'
+    )).join("");
+    function escapeHtml(value) { return String(value || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch])); }
+  <\/script>
+</body>
+</html>
+
+<!-- 可用字段：${fields}。 -->`;
+    }
+
+    async function readCardFile(file) {
+      if (/\.json$/i.test(file.name)) {
+        return {
+          rawCard: JSON.parse(await file.text()),
+          sourceType: "json",
+          pngBytes: null,
+        };
+      }
+      if (/\.png$/i.test(file.name)) {
+        const arrayBuffer = await file.arrayBuffer();
+        return {
+          rawCard: await parsePngCard(arrayBuffer),
+          sourceType: "png",
+          pngBytes: new Uint8Array(arrayBuffer),
+        };
+      }
+      throw new Error("不支持的角色卡文件。请选择 SillyTavern JSON 或 PNG。");
+    }
+
+    async function parsePngCard(arrayBuffer) {
+      const data = new Uint8Array(arrayBuffer);
+      const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+      if (!signature.every((byte, index) => data[index] === byte)) throw new Error("这不是有效的 PNG 角色卡。");
+      const chunks = [];
+      let offset = 8;
+      while (offset + 12 <= data.length) {
+        const length = readUint32(data, offset); offset += 4;
+        const type = ascii(data.slice(offset, offset + 4)); offset += 4;
+        const chunk = data.slice(offset, offset + length); offset += length + 4;
+        const decoded = await decodePngTextChunk(type, chunk);
+        if (decoded && decoded.keyword && decoded.text) chunks.push(decoded);
+        if (type === "IEND") break;
+      }
+      const preferred = chunks
+        .filter((chunk) => /^(chara|ccv3|character)$/i.test(chunk.keyword))
+        .concat(chunks.filter((chunk) => !/^(chara|ccv3|character)$/i.test(chunk.keyword)));
+      for (const chunk of preferred) {
+        const parsed = parseCardPayload(chunk.text);
+        if (parsed) return parsed;
+      }
+      throw new Error("这个 PNG 里没有可读取的 SillyTavern 元数据。");
+    }
+
+    async function decodePngTextChunk(type, chunk) {
+      if (type === "tEXt") {
+        const split = chunk.indexOf(0);
+        if (split < 0) return null;
+        return { keyword: ascii(chunk.slice(0, split)).trim(), text: latin1(chunk.slice(split + 1)) };
+      }
+      if (type === "zTXt") {
+        const split = chunk.indexOf(0);
+        if (split < 0 || split + 2 > chunk.length || chunk[split + 1] !== 0) return null;
+        return { keyword: ascii(chunk.slice(0, split)).trim(), text: await inflateZlibText(chunk.slice(split + 2)) };
+      }
+      if (type === "iTXt") {
+        const first = chunk.indexOf(0);
+        if (first < 0 || first + 3 > chunk.length) return null;
+        const keyword = utf8(chunk.slice(0, first)).trim();
+        const compressionFlag = chunk[first + 1];
+        const compressionMethod = chunk[first + 2];
+        let cursor = first + 3;
+        const languageEnd = chunk.indexOf(0, cursor);
+        if (languageEnd < 0) return null;
+        cursor = languageEnd + 1;
+        const translatedEnd = chunk.indexOf(0, cursor);
+        if (translatedEnd < 0) return null;
+        cursor = translatedEnd + 1;
+        const body = chunk.slice(cursor);
+        if (compressionFlag === 1) {
+          if (compressionMethod !== 0) return null;
+          return { keyword, text: await inflateZlibText(body) };
+        }
+        return { keyword, text: utf8(body) };
+      }
+      return null;
+    }
+
+    async function inflateZlibText(bytes) {
+      if (!("DecompressionStream" in window)) throw new Error("当前浏览器不能读取压缩 PNG 元数据。请使用新版 Chrome 或 Edge。");
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+      const arrayBuffer = await new Response(stream).arrayBuffer();
+      return utf8(new Uint8Array(arrayBuffer));
+    }
+
+    function parseCardPayload(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch {}
+      try {
+        const decoded = atob(raw.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/"));
+        return JSON.parse(utf8(Uint8Array.from(decoded, (char) => char.charCodeAt(0))));
+      } catch {
+        return null;
+      }
+    }
+
+    function loadCard(rawCard, fileName, loaded = {}) {
+      const data = rawCard && rawCard.data && typeof rawCard.data === "object" && !Array.isArray(rawCard.data) ? rawCard.data : rawCard;
+      const entries = Array.isArray(data && data.character_book && data.character_book.entries) ? data.character_book.entries : [];
+      setupState.fileName = fileName;
+      setupState.cardName = normalizeText(data && data.name) || fileName.replace(/\.[^.]+$/, "");
+      setupState.description = normalizeText(data && data.description);
+      setupState.rawCard = cloneJson(rawCard);
+      setupState.sourceType = loaded.sourceType || (/\.png$/i.test(fileName) ? "png" : "json");
+      setupState.pngBytes = loaded.pngBytes || null;
+      setupState.manualDisabledIds = new Set();
+      setupState.manualDisabledNames = new Set();
+      setupState.manualEnabledIds = new Set();
+      setupState.manualEnabledNames = new Set();
+      setupState.entries = entries.map(normalizeEntry);
+      renderWorldbook();
+    }
+
+    function normalizeEntry(entry, index) {
+      const id = normalizeText(entry.id || entry.uid || entry.keysecondary || `entry-${index + 1}`);
+      const name = normalizeText(entry.name || entry.comment || entry.memo || id);
+      const content = normalizeText(entry.content || entry.entry || entry.prompt);
+      const keys = []
+        .concat(Array.isArray(entry.keys) ? entry.keys : [])
+        .concat(Array.isArray(entry.key) ? entry.key : [])
+        .concat(Array.isArray(entry.primary_keys) ? entry.primary_keys : [])
+        .map(normalizeText)
+        .filter(Boolean);
+      const rawText = [name, content, keys.join("\n"), entry.scriptName, entry.findRegex, entry.replaceString].filter(Boolean).join("\n");
+      return { index, id, name, content, keys, constant: Boolean(entry.constant), disabledInCard: entry.disabled === true || entry.disable === true || entry.enabled === false, hardFiltered: MVU_RE.test(rawText) };
+    }
+
+    function renderWorldbook() {
+      document.getElementById("cardName").textContent = setupState.cardName || "尚未加载角色卡";
+      document.getElementById("cardMeta").textContent = setupState.fileName || "";
+      renderCharacterDescription();
+      renderEntries();
+      updateOverrideOutput();
+      const enabled = Boolean(setupState.entries.length);
+      document.getElementById("copyOverrideButton").disabled = !enabled;
+      document.getElementById("saveModifiedCardButton").disabled = !enabled;
+      document.getElementById("downloadOverrideButton").disabled = !enabled;
+    }
+
+    function renderCharacterDescription() {
+      const panel = document.getElementById("characterDescriptionPanel");
+      const text = setupState.description;
+      panel.hidden = !text;
+      document.getElementById("characterDescriptionText").textContent = text || "";
+      const tags = ['<span class="tag active">主提示词</span>'];
+      if (text && MVU_RE.test(text)) tags.push('<span class="tag blocked">含运行时过滤内容</span>');
+      document.getElementById("characterDescriptionTags").innerHTML = tags.join("");
+    }
+
+    function renderEntries() {
+      const query = normalizeText(document.getElementById("entrySearch").value).toLowerCase();
+      const list = document.getElementById("entryList");
+      list.innerHTML = "";
+      for (const entry of setupState.entries) {
+        const manualDisabled = isManuallyDisabled(entry);
+        const manualEnabled = isManuallyEnabled(entry);
+        const active = isEntryActive(entry);
+        const searchable = `${entry.id} ${entry.name} ${entry.keys.join(" ")} ${entry.content}`.toLowerCase();
+        const item = document.createElement("article");
+        item.className = "entry";
+        item.hidden = Boolean(query && !searchable.includes(query));
+        item.innerHTML = `
+          <label>
+            <input type="checkbox" ${active ? "checked" : ""} ${entry.hardFiltered ? "disabled" : ""}>
+            <span>${active ? "启用" : "关闭"}</span>
+          </label>
+          <div>
+            <h3>${escapeHtml(entry.name || entry.id)}</h3>
+            <div class="tags">${renderEntryTags(entry, manualDisabled, manualEnabled, active)}</div>
+            <p class="entry-preview">${escapeHtml(entry.content || "(空条目)")}</p>
+          </div>
+        `;
+        item.querySelector("input").addEventListener("change", (event) => {
+          setEntryManualActive(entry, event.target.checked);
+          renderWorldbook();
+        });
+        list.appendChild(item);
+      }
+      updateStats();
+    }
+
+    function renderEntryTags(entry, manualDisabled, manualEnabled, active) {
+      const tags = [`<span class="tag">id ${escapeHtml(entry.id)}</span>`];
+      if (entry.constant) tags.push('<span class="tag">常驻</span>');
+      if (entry.keys.length) tags.push(`<span class="tag">关键词 ${escapeHtml(entry.keys.slice(0, 4).join(", "))}</span>`);
+      if (entry.hardFiltered) tags.push('<span class="tag blocked">已硬过滤</span>');
+      else if (manualEnabled) tags.push('<span class="tag active">手动打开</span>');
+      else if (manualDisabled) tags.push('<span class="tag manual">手动关闭</span>');
+      else if (entry.disabledInCard) tags.push('<span class="tag">角色卡内已关闭</span>');
+      else if (active) tags.push('<span class="tag active">进入提示词</span>');
+      return tags.join("");
+    }
+
+    function updateStats() {
+      const manual = setupState.entries.filter((entry) => isManuallyDisabled(entry) || isManuallyEnabled(entry)).length;
+      const hard = setupState.entries.filter((entry) => entry.hardFiltered).length;
+      const active = setupState.entries.filter(isEntryActive).length;
+      document.getElementById("totalCount").textContent = String(setupState.entries.length);
+      document.getElementById("activeCount").textContent = String(active);
+      document.getElementById("hardCount").textContent = String(hard);
+      document.getElementById("manualCount").textContent = String(manual);
+    }
+
+    function updateOverrideOutput() {
+      document.getElementById("overrideOutput").value = buildModifiedCardJson();
+    }
+
+    function isManuallyDisabled(entry) {
+      return setupState.manualDisabledIds.has(entry.id) || setupState.manualDisabledNames.has(entry.name);
+    }
+
+    function isManuallyEnabled(entry) {
+      return setupState.manualEnabledIds.has(entry.id) || setupState.manualEnabledNames.has(entry.name);
+    }
+
+    function isEntryActive(entry) {
+      if (entry.hardFiltered) return false;
+      if (isManuallyEnabled(entry)) return true;
+      if (isManuallyDisabled(entry)) return false;
+      return !entry.disabledInCard;
+    }
+
+    function setEntryManualActive(entry, active) {
+      removeManualEnabled(entry);
+      removeManualDisabled(entry);
+      if (active && entry.disabledInCard) {
+        setupState.manualEnabledIds.add(entry.id);
+        if (entry.name) setupState.manualEnabledNames.add(entry.name);
+      } else if (!active && !entry.disabledInCard) {
+        setupState.manualDisabledIds.add(entry.id);
+        if (entry.name) setupState.manualDisabledNames.add(entry.name);
+      }
+      updateOverrideOutput();
+    }
+
+    function removeManualDisabled(entry) {
+      setupState.manualDisabledIds.delete(entry.id);
+      if (entry.name) setupState.manualDisabledNames.delete(entry.name);
+    }
+
+    function removeManualEnabled(entry) {
+      setupState.manualEnabledIds.delete(entry.id);
+      if (entry.name) setupState.manualEnabledNames.delete(entry.name);
+    }
+
+    function resetCard(message) {
+      setupState.fileName = "";
+      setupState.cardName = "";
+      setupState.description = "";
+      setupState.rawCard = null;
+      setupState.sourceType = "";
+      setupState.pngBytes = null;
+      setupState.entries = [];
+      setupState.manualDisabledIds = new Set();
+      setupState.manualDisabledNames = new Set();
+      setupState.manualEnabledIds = new Set();
+      setupState.manualEnabledNames = new Set();
+      document.getElementById("cardName").textContent = "尚未加载角色卡";
+      document.getElementById("cardMeta").textContent = message;
+      renderCharacterDescription();
+      document.getElementById("entryList").innerHTML = "";
+      document.getElementById("overrideOutput").value = "";
+      document.getElementById("copyOverrideButton").disabled = true;
+      document.getElementById("saveModifiedCardButton").disabled = true;
+      document.getElementById("downloadOverrideButton").disabled = true;
+      setStatus("cardExportStatus", "");
+      updateStats();
+    }
+
+    function buildModifiedCardJson() {
+      const modified = buildModifiedCard();
+      return modified ? JSON.stringify(modified, null, 2) : "";
+    }
+
+    function buildModifiedCard() {
+      if (!setupState.rawCard) return null;
+      const modified = cloneJson(setupState.rawCard);
+      const data = modified && modified.data && typeof modified.data === "object" && !Array.isArray(modified.data)
+        ? modified.data
+        : modified;
+      const entries = Array.isArray(data && data.character_book && data.character_book.entries)
+        ? data.character_book.entries
+        : [];
+      for (const entryState of setupState.entries) {
+        const entry = entries[entryState.index];
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+        if (entryState.hardFiltered || isManuallyDisabled(entryState)) {
+          entry.enabled = false;
+          entry.disabled = true;
+          entry.disable = true;
+        } else if (isManuallyEnabled(entryState)) {
+          entry.enabled = true;
+          entry.disabled = false;
+          entry.disable = false;
+        }
+      }
+      return modified;
+    }
+
+    async function downloadModifiedCard() {
+      const modified = buildModifiedCard();
+      if (!modified) return;
+      const fileName = buildModifiedCardFileName(setupState.fileName || setupState.cardName, setupState.sourceType);
+      if (setupState.sourceType === "png") {
+        const bytes = buildModifiedPng(setupState.pngBytes, modified);
+        downloadBlob(fileName, new Blob([bytes], { type: "image/png" }));
+        return;
+      }
+      downloadText(fileName, JSON.stringify(modified, null, 2), "application/json;charset=utf-8");
+    }
+
+    async function saveModifiedCardToFixedDirectory() {
+      try {
+        const { fileName, bytes } = buildModifiedCardFilePayload();
+        setStatus("cardExportStatus", `正在写入 ${fileName} 到 character-cards...`);
+        const result = await writeCharacterCardToFixedDirectory(fileName, bytes);
+        const writtenName = result.written?.name || fileName;
+        const writtenPath = joinDisplayPath(result.folder || "", result.written?.path || writtenName);
+        setStatus("cardExportStatus", `已保存到 character-cards：${writtenPath}。启动中的微信桥请发送 /char reload。`, "success");
+        await refreshCardDirectoryList();
+      } catch (error) {
+        setStatus("cardExportStatus", `保存失败：${error && error.message ? error.message : String(error)}。已改后角色卡仍可用“下载改后角色卡”保存。`, "warning");
+      }
+    }
+
+    function buildModifiedCardFilePayload() {
+      const modified = buildModifiedCard();
+      if (!modified) throw new Error("还没有加载角色卡。");
+      const fileName = buildModifiedCardFileName(setupState.fileName || setupState.cardName, setupState.sourceType);
+      if (setupState.sourceType === "png") {
+        return { fileName, bytes: buildModifiedPng(setupState.pngBytes, modified) };
+      }
+      return { fileName, bytes: new TextEncoder().encode(JSON.stringify(modified, null, 2)) };
+    }
+
+    async function saveTextFile({ text, suggestedName, statusId, success }) {
+      if (!window.showSaveFilePicker) {
+        copyText(text);
+        setStatus(statusId, "当前浏览器不支持直接写入本地文件；内容已复制，请让 Codex / Claude Code 写入对应文件。", "warning");
+        return;
+      }
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{ description: "文本文件", accept: { "text/plain": [".txt", ".env", ".html", ".css", ".json"] } }],
+          excludeAcceptAllOption: false,
+        });
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        setStatus(statusId, success, "success");
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          setStatus(statusId, "已取消，没有写入文件。", "warning");
+          return;
+        }
+        setStatus(statusId, `写入失败：${error && error.message ? error.message : String(error)}`, "warning");
+      }
+    }
+
+    function valueOf(id) {
+      const element = document.getElementById(id);
+      return element ? String(element.value || "").trim() : "";
+    }
+
+    function isValidTimeZone(timeZone) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function setStatus(id, message, tone = "") {
+      const statuses = Array.from(document.querySelectorAll(`[data-status-id="${id}"]`));
+      const directStatus = document.getElementById(id);
+      if (directStatus && !statuses.includes(directStatus)) statuses.unshift(directStatus);
+      if (!statuses.length) return;
+      for (const status of statuses) {
+        status.textContent = message;
+        status.classList.toggle("success", tone === "success");
+        status.classList.toggle("warning", tone === "warning");
+      }
+    }
+
+    function inferCurrentFileProjectRoot() {
+      if (location.protocol !== "file:") return "";
+      try {
+        let pathname = decodeURIComponent(location.pathname || "");
+        if (/^\/[A-Za-z]:\//u.test(pathname)) pathname = pathname.slice(1);
+        pathname = pathname.replace(/\//gu, "\\");
+        return pathname.replace(/\\00_START_HERE\.html$/iu, "").replace(/[\\\/]+$/u, "");
+      } catch {
+        return "";
+      }
+    }
+
+    function withCurrentProjectRootQuery(url) {
+      if (!currentFileProjectRoot) return url;
+      const joiner = url.includes("?") ? "&" : "?";
+      return `${url}${joiner}root=${encodeURIComponent(currentFileProjectRoot)}`;
+    }
+
+    function currentProjectRootPayload() {
+      return currentFileProjectRoot ? { projectRoot: currentFileProjectRoot } : {};
+    }
+
+    function helperFolderLabel(payload) {
+      return payload && payload.folder ? payload.folder : "ST_Character_Wechat/character-cards";
+    }
+
+    function joinDisplayPath(folder, name) {
+      if (!folder) return name;
+      const separator = folder.includes("\\") ? "\\" : "/";
+      return `${folder.replace(/[\\\/]+$/u, "")}${separator}${name}`;
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      else fallbackCopy(text);
+    }
+
+    function fallbackCopy(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+
+    function downloadText(fileName, text, type = "text/plain;charset=utf-8") {
+      downloadBlob(fileName, new Blob([text], { type }));
+    }
+
+    function downloadBlob(fileName, blob) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function buildModifiedCardFileName(fileName, sourceType) {
+      const normalized = buildSafeCardFileName(fileName);
+      const withoutExtension = normalized.replace(/\.(json|png)$/i, "");
+      const extension = sourceType === "png" ? "png" : "json";
+      return `${withoutExtension || "character"}.modified.${extension}`;
+    }
+
+    function isImportableCardFile(file) {
+      const name = typeof file === "string" ? file : file && file.name;
+      return /\.(json|png)$/i.test(String(name || "")) && !/\.override\.json$/i.test(String(name || ""));
+    }
+
+    function buildSafeCardFileName(fileName) {
+      const normalized = normalizeText(fileName)
+        .split(/[\\/]/)
+        .pop()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_");
+      if (!isImportableCardFile(normalized)) {
+        throw new Error("只支持 .json 或 .png 角色卡，不能导入 .override.json。");
+      }
+      return normalized;
+    }
+
+    function splitFileName(fileName) {
+      const match = String(fileName || "").match(/^(.*?)(\.[^.]+)$/);
+      return match
+        ? { name: match[1] || "character", extension: match[2] || "" }
+        : { name: fileName || "character", extension: "" };
+    }
+
+    function buildModifiedPng(pngBytes, modifiedCard) {
+      if (!(pngBytes instanceof Uint8Array) || pngBytes.length < 8) throw new Error("原 PNG 数据不可用，无法导出 PNG。");
+      const metadata = createPngChunk("tEXt", concatUint8Arrays([
+        asciiBytes("chara"),
+        new Uint8Array([0]),
+        asciiBytes(base64Utf8(JSON.stringify(modifiedCard))),
+      ]));
+      const out = [pngBytes.slice(0, 8)];
+      let offset = 8;
+      let inserted = false;
+      while (offset + 12 <= pngBytes.length) {
+        const start = offset;
+        const length = readUint32(pngBytes, offset); offset += 4;
+        const type = ascii(pngBytes.slice(offset, offset + 4)); offset += 4;
+        const dataStart = offset;
+        const dataEnd = offset + length;
+        if (dataEnd + 4 > pngBytes.length) throw new Error("PNG 结构不完整，无法导出。");
+        const chunkData = pngBytes.slice(dataStart, dataEnd);
+        offset = dataEnd + 4;
+        const chunk = pngBytes.slice(start, offset);
+        if (type === "IEND") {
+          out.push(metadata, chunk);
+          inserted = true;
+          break;
+        }
+        if (!isPngCharacterMetadataChunk(type, chunkData)) out.push(chunk);
+      }
+      if (!inserted) out.push(metadata);
+      return concatUint8Arrays(out);
+    }
+
+    function isPngCharacterMetadataChunk(type, chunk) {
+      if (!["tEXt", "zTXt", "iTXt"].includes(type)) return false;
+      const split = chunk.indexOf(0);
+      if (split < 0) return false;
+      return /^(chara|ccv3|character)$/i.test(ascii(chunk.slice(0, split)).trim());
+    }
+
+    function createPngChunk(type, data) {
+      const typeBytes = asciiBytes(type);
+      const crcBytes = uint32Bytes(crc32(concatUint8Arrays([typeBytes, data])));
+      return concatUint8Arrays([uint32Bytes(data.length), typeBytes, data, crcBytes]);
+    }
+
+    function crc32(bytes) {
+      const table = crc32.table || (crc32.table = createCrc32Table());
+      let crc = 0xffffffff;
+      for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    function createCrc32Table() {
+      const table = new Uint32Array(256);
+      for (let index = 0; index < 256; index += 1) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+        table[index] = value >>> 0;
+      }
+      return table;
+    }
+
+    function uint32Bytes(value) {
+      const out = new Uint8Array(4);
+      out[0] = (value >>> 24) & 0xff;
+      out[1] = (value >>> 16) & 0xff;
+      out[2] = (value >>> 8) & 0xff;
+      out[3] = value & 0xff;
+      return out;
+    }
+
+    function concatUint8Arrays(parts) {
+      const size = parts.reduce((sum, part) => sum + part.length, 0);
+      const out = new Uint8Array(size);
+      let offset = 0;
+      for (const part of parts) {
+        out.set(part, offset);
+        offset += part.length;
+      }
+      return out;
+    }
+
+    function asciiBytes(text) { return new TextEncoder().encode(String(text || "")); }
+
+    function bytesToBase64(bytes) {
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 0x8000) {
+        binary += String.fromCharCode(...bytes.slice(index, index + 0x8000));
+      }
+      return btoa(binary);
+    }
+
+    function base64Utf8(text) {
+      const bytes = new TextEncoder().encode(String(text || ""));
+      return bytesToBase64(bytes);
+    }
+
+    function readUint32(data, offset) {
+      return ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]) >>> 0;
+    }
+
+    function ascii(bytes) { return new TextDecoder("ascii").decode(bytes); }
+    function latin1(bytes) { return new TextDecoder("latin1").decode(bytes); }
+    function utf8(bytes) { return new TextDecoder().decode(bytes); }
+    function cloneJson(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
+    function normalizeText(value) { return typeof value === "string" || typeof value === "number" ? String(value).trim() : ""; }
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>

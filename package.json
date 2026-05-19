@@ -1,0 +1,36 @@
+{
+  "name": "st-character-wechat",
+  "version": "0.1.0",
+  "description": "A local SillyTavern character-card WeChat bridge.",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "bin": {
+    "st-character-wechat": "./bin/st-character-wechat.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node ./bin/st-character-wechat.js start",
+    "login": "node ./bin/st-character-wechat.js login",
+    "accounts": "node ./bin/st-character-wechat.js accounts",
+    "doctor": "node ./bin/st-character-wechat.js doctor",
+    "help": "node ./bin/st-character-wechat.js help",
+    "manual": "node ./scripts/manual-helper.js",
+    "cards:list": "node ./scripts/list-character-cards.js",
+    "shared:start": "node ./scripts/shared-start.js",
+    "shared:open": "node ./scripts/shared-open.js",
+    "shared:status": "node ./scripts/shared-status.js",
+    "test": "node --test",
+    "test:install": "node ./scripts/install-check.js",
+    "check": "node ./scripts/install-check.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "playwright-core": "^1.59.1",
+    "qrcode-terminal": "0.12.0",
+    "ws": "^8.19.0"
+  }
+}

@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>每日小结</title>
+  <style>
+    :root {
+      --color-bg: #ffffff;
+      --color-surface: #fffefd;
+      --color-panel: #ffffff;
+      --color-ink: #172033;
+      --color-muted: #697386;
+      --color-faint: #9aa3b2;
+      --color-line: #e7e2da;
+      --color-line-strong: #d7cec2;
+      --color-wash: #fbf1e4;
+      --color-accent: #e97862;
+      --color-accent-ink: #9b3e31;
+      --color-green: #67b985;
+      --color-blue: #6e9fcf;
+      --color-violet: #8f7bc8;
+      --color-gold: #d8a84e;
+      --shadow-soft: 0 22px 52px -42px rgba(23, 32, 51, 0.46);
+      --shadow-panel: 0 18px 42px -36px rgba(23, 32, 51, 0.35);
+      --radius-page: 24px;
+      --radius-panel: 18px;
+      --radius-card: 16px;
+      --radius-pill: 999px;
+      --font-sans: "Satoshi", "Geist", "Outfit", "Microsoft YaHei", "PingFang SC", sans-serif;
+      --font-mono: "JetBrains Mono", "Geist Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-width: 720px;
+      background: var(--color-bg);
+      color: var(--color-ink);
+      font-family: var(--font-sans);
+      letter-spacing: 0;
+    }
+
+    body {
+      padding: 28px;
+    }
+
+    .report {
+      width: 664px;
+      margin: 0 auto;
+      padding: 0 0 26px;
+      background: var(--color-surface);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      overflow: hidden;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 34px 38px 24px;
+    }
+
+    .hero-icon,
+    .generated-icon,
+    .notice-icon,
+    .metric-icon,
+    .fact-icon,
+    .info-icon {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .hero-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      color: var(--color-accent);
+      background: linear-gradient(145deg, rgba(233, 120, 98, 0.17), rgba(216, 168, 78, 0.12));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+    }
+
+    .hero-title {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--color-ink);
+      font-size: 30px;
+      line-height: 1.12;
+      font-weight: 780;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .subtitle {
+      margin: 9px 0 0;
+      color: var(--color-muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .generated {
+      justify-self: end;
+      display: inline-grid;
+      grid-template-columns: 18px auto;
+      gap: 7px;
+      align-items: center;
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    .generated-icon {
+      width: 18px;
+      height: 18px;
+      color: #7c8798;
+    }
+
+    .panel {
+      margin: 18px 38px 0;
+      padding: 22px 24px;
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-panel);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--color-ink);
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      margin: 5px 0 0;
+      color: var(--color-faint);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .section-mark {
+      color: var(--color-faint);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .summary-text {
+      margin: 0;
+      color: #394154;
+      font-size: 15px;
+      line-height: 1.8;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1.18fr repeat(4, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .mood-card {
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      min-height: 198px;
+      padding: 20px 16px;
+      border-right: 1px solid var(--color-line);
+      text-align: center;
+    }
+
+    .mood-orb {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 76px;
+      height: 76px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .mood-emoji {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+      font-size: 48px;
+      line-height: 1;
+    }
+
+    .mood-label {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0 10px;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      color: #3c7f54;
+      background: rgba(103, 185, 133, 0.16);
+      font-size: 14px;
+      line-height: 1.25;
+      font-weight: 760;
+      overflow-wrap: anywhere;
+    }
+
+    .mood-detail {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .metric-card {
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      min-height: 198px;
+      padding: 14px 8px;
+      border-radius: 15px;
+      background: transparent;
+      text-align: center;
+    }
+
+    .metric-icon {
+      width: 40px;
+      height: 40px;
+      margin: 0 0 12px;
+      border-radius: 50%;
+      color: var(--item-color, var(--color-blue));
+      background: color-mix(in srgb, var(--item-color, var(--color-blue)) 16%, white);
+    }
+
+    .metric-label {
+      margin: 0 0 7px;
+      color: var(--color-ink);
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 740;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-value {
+      margin: 0;
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .metric-detail {
+      margin: 6px 0 0;
+      color: var(--color-faint);
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tag {
+      display: inline-flex;
+      min-height: 31px;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 16px;
+      border-radius: var(--radius-pill);
+      color: #2f475e;
+      background: linear-gradient(180deg, #edf3f8, #e6eef5);
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .fact-list,
+    .info-list {
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .fact-item,
+    .info-item {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 11px;
+      align-items: start;
+      color: #4e5666;
+      font-size: 14px;
+      line-height: 1.75;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .fact-icon,
+    .info-icon {
+      width: 28px;
+      height: 28px;
+      margin-top: 1px;
+      border-radius: 9px;
+      color: var(--item-color, var(--color-green));
+      background: color-mix(in srgb, var(--item-color, var(--color-green)) 16%, white);
+    }
+
+    .quote-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    blockquote {
+      position: relative;
+      margin: 0;
+      min-height: 64px;
+      padding: 15px 16px 15px 42px;
+      border-radius: 12px;
+      color: #344052;
+      background: linear-gradient(135deg, var(--quote-bg, #eef6ee), rgba(255, 255, 255, 0.88));
+      font-size: 13px;
+      line-height: 1.75;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    blockquote::before {
+      content: "“";
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      color: var(--quote-color, var(--color-green));
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .info-stack {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .info-title,
+    .trend-title {
+      margin: 0 0 12px;
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 740;
+    }
+
+    .time-bars {
+      display: grid;
+      gap: 11px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .bar-label {
+      color: var(--color-muted);
+      font-size: 12px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .bar-track {
+      height: 9px;
+      border-radius: var(--radius-pill);
+      background: #eef1f5;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 4px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--color-blue), color-mix(in srgb, var(--color-blue) 58%, white));
+    }
+
+    .bar-detail {
+      grid-column: 2;
+      margin-top: -5px;
+      color: var(--color-faint);
+      font-size: 11px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .trend-card {
+      min-height: 188px;
+      padding: 16px 16px 12px;
+      border: 1px solid var(--color-line);
+      border-radius: 15px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 252, 249, 0.88));
+    }
+
+    .trend-body {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .trend-axis {
+      display: grid;
+      align-content: space-between;
+      padding: 4px 0 22px;
+      color: var(--color-faint);
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .trend-line {
+      min-width: 0;
+    }
+
+    .trend-svg {
+      display: block;
+      width: 100%;
+      height: 112px;
+      overflow: visible;
+    }
+
+    .trend-labels {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 4px;
+      margin-top: 7px;
+      color: var(--color-muted);
+      font-size: 11px;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .empty {
+      color: var(--color-faint);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .footer-note {
+      margin: 18px 38px 0;
+      color: var(--color-faint);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    svg {
+      display: block;
+    }
+
+    @media (max-width: 680px) {
+      html,
+      body {
+        min-width: 0;
+      }
+
+      body {
+        padding: 14px;
+      }
+
+      .report {
+        width: 100%;
+      }
+
+      .hero {
+        grid-template-columns: 48px minmax(0, 1fr);
+      }
+
+      .generated {
+        grid-column: 2;
+        justify-self: start;
+      }
+
+      .panel,
+      .footer-note {
+        margin-left: 18px;
+        margin-right: 18px;
+      }
+
+      .overview-grid,
+      .quote-grid,
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mood-card {
+        border-right: 0;
+        border-bottom: 1px solid var(--color-line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <header class="hero">
+      <div class="hero-icon" data-icon="calendar"></div>
+      <div class="hero-title">
+        <h1 id="dateTitle">每日小结</h1>
+        <p class="subtitle" id="subtitle">聊天整理</p>
+      </div>
+      <div class="generated">
+        <span class="generated-icon" data-icon="bot"></span>
+        <span>生成时间：<span id="generatedAt"></span></span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>今日状态概览</h2>
+          <p class="section-note">从情绪、专注、压力和收获几个角度整理。</p>
+        </div>
+        <span class="section-mark">01</span>
+      </div>
+      <div class="overview-grid" id="overview"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>今日小结</h2>
+          <p class="section-note">只总结用户自己的状态与事项。</p>
+        </div>
+        <span class="section-mark">02</span>
+      </div>
+      <p class="summary-text" id="summary"></p>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>今日主要话题</h2>
+          <p class="section-note">聊天里反复出现的重点。</p>
+        </div>
+        <span class="section-mark">03</span>
+      </div>
+      <ul class="tag-row" id="topics"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>关键信息摘要</h2>
+          <p class="section-note">可保留、可回看的事实线索。</p>
+        </div>
+        <span class="section-mark">04</span>
+      </div>
+      <ul class="fact-list" id="keyFacts"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>聊天摘录</h2>
+          <p class="section-note">来自你的聊天。</p>
+        </div>
+        <span class="section-mark">05</span>
+      </div>
+      <div class="quote-grid" id="quotes"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>补充信息</h2>
+          <p class="section-note">时间分布、能量趋势与后续提醒。</p>
+        </div>
+        <span class="section-mark">06</span>
+      </div>
+      <div class="bottom-grid">
+        <div class="info-stack">
+          <div>
+            <h3 class="info-title">补充记录</h3>
+            <ul class="info-list" id="supplemental"></ul>
+          </div>
+          <div>
+            <h3 class="info-title">时间分布</h3>
+            <div class="time-bars" id="timeDistribution"></div>
+          </div>
+        </div>
+        <div class="trend-card">
+          <h3 class="trend-title">能量水平变化（今日整体趋势）</h3>
+          <div class="trend-body">
+            <div class="trend-axis">
+              <span>高</span>
+              <span>中</span>
+              <span>低</span>
+            </div>
+            <div class="trend-line" id="energyTrend"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">注：本总结基于你的聊天内容整理，仅供参考。</p>
+  </main>
+
+  <script id="card-data" type="application/json">__CARD_DATA_JSON__</script>
+  <script>
+    const data = JSON.parse(document.getElementById("card-data").textContent || "{}");
+    applyTokens(data.tokens);
+    hydrateStaticIcons();
+
+    const mood = deriveMood(data);
+
+    setText("dateTitle", formatDateTitle(data.date) || data.title || "每日小结");
+    setText("subtitle", data.title && data.title !== "每日小结" ? data.title : "聊天整理");
+    setText("generatedAt", data.generatedAt || "");
+    setText("summary", data.summary || "暂无总结。");
+
+    renderOverview(document.getElementById("overview"), data.stateOverview || [], mood);
+    renderTags(document.getElementById("topics"), data.topics || data.tags || [], "暂无主要话题");
+    renderFactList(document.getElementById("keyFacts"), data.keyFacts || [], "暂无关键信息");
+    renderQuotes(document.getElementById("quotes"), data.chatExcerpts || data.representativeQuotes || []);
+    renderInfoList(document.getElementById("supplemental"), data.supplemental || [], "暂无补充信息");
+    renderBars(document.getElementById("timeDistribution"), data.timeDistribution || []);
+    renderTrend(document.getElementById("energyTrend"), data.energyTrend || []);
+
+    function applyTokens(tokens) {
+      if (!tokens || typeof tokens !== "object") return;
+      for (const [key, value] of Object.entries(tokens)) {
+        if (!/^--[a-z0-9-]+$/i.test(key)) continue;
+        document.documentElement.style.setProperty(key, String(value));
+      }
+    }
+
+    function hydrateStaticIcons() {
+      for (const element of document.querySelectorAll("[data-icon]")) {
+        element.innerHTML = iconMarkup(element.dataset.icon);
+      }
+    }
+
+    function setText(id, value) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value || "";
+    }
+
+    function renderOverview(container, items, mood) {
+      clear(container);
+      const normalized = normalizeArray(items).filter((item) => item && typeof item === "object");
+      const moodCard = document.createElement("article");
+      moodCard.className = "mood-card";
+      const orb = document.createElement("div");
+      orb.className = "mood-orb";
+      const emoji = document.createElement("span");
+      emoji.className = "mood-emoji";
+      emoji.textContent = mood.emoji;
+      orb.appendChild(emoji);
+      const label = document.createElement("p");
+      label.className = "mood-label";
+      label.textContent = mood.label;
+      const detail = document.createElement("p");
+      detail.className = "mood-detail";
+      detail.textContent = mood.detail;
+      moodCard.append(orb, label, detail);
+      container.appendChild(moodCard);
+
+      const metrics = normalized
+        .filter((item) => normalizeTone(item.tone || item.label) !== "mood")
+        .slice(0, 4);
+      if (!metrics.length) {
+        metrics.push(
+          { label: "动力与专注", value: "未记录", detail: "暂无足够信息。", tone: "progress" },
+          { label: "压力与挑战", value: "未记录", detail: "暂无足够信息。", tone: "stress" },
+          { label: "满足与收获", value: "未记录", detail: "暂无足够信息。", tone: "gain" },
+          { label: "睡眠与恢复", value: "未记录", detail: "暂无足够信息。", tone: "sleep" }
+        );
+      }
+      while (metrics.length < 4) {
+        const fallback = [
+          { label: "动力与专注", value: "未记录", detail: "暂无足够信息。", tone: "progress" },
+          { label: "压力与挑战", value: "未记录", detail: "暂无足够信息。", tone: "stress" },
+          { label: "满足与收获", value: "未记录", detail: "暂无足够信息。", tone: "gain" },
+          { label: "睡眠与恢复", value: "未记录", detail: "暂无足够信息。", tone: "sleep" },
+        ][metrics.length % 4];
+        metrics.push(fallback);
+      }
+
+      for (const item of metrics) {
+        const tone = normalizeTone(item.tone || item.label);
+        const card = document.createElement("article");
+        card.className = "metric-card";
+        card.style.setProperty("--item-color", toneColor(tone));
+        const icon = document.createElement("div");
+        icon.className = "metric-icon";
+        icon.innerHTML = iconMarkup(toneIcon(tone));
+        const label = document.createElement("p");
+        label.className = "metric-label";
+        label.textContent = item.label || "状态";
+        const value = document.createElement("p");
+        value.className = "metric-value";
+        value.textContent = item.value || "未记录";
+        const detail = document.createElement("p");
+        detail.className = "metric-detail";
+        detail.textContent = item.detail || "";
+        card.append(icon, label, value, detail);
+        container.appendChild(card);
+      }
+    }
+
+    function renderTags(container, items, emptyText) {
+      clear(container);
+      const normalized = normalizeArray(items).map(textOf).filter(Boolean);
+      if (!normalized.length) {
+        const tag = document.createElement("li");
+        tag.className = "tag";
+        tag.textContent = emptyText;
+        container.appendChild(tag);
+        return;
+      }
+      for (const value of normalized.slice(0, 8)) {
+        const tag = document.createElement("li");
+        tag.className = "tag";
+        tag.textContent = value;
+        container.appendChild(tag);
+      }
+    }
+
+    function renderFactList(container, items, emptyText) {
+      clear(container);
+      const normalized = normalizeArray(items).map(textOf).filter(Boolean);
+      if (!normalized.length) {
+        const item = document.createElement("li");
+        item.className = "fact-item";
+        const icon = document.createElement("span");
+        icon.className = "fact-icon";
+        icon.innerHTML = iconMarkup("check");
+        item.append(icon, document.createTextNode(emptyText));
+        container.appendChild(item);
+        return;
+      }
+      const iconNames = ["check", "bolt", "moon", "wave", "star"];
+      for (const [index, value] of normalized.slice(0, 7).entries()) {
+        const tone = ["progress", "stress", "sleep", "neutral", "gain"][index % 5];
+        const item = document.createElement("li");
+        item.className = "fact-item";
+        item.style.setProperty("--item-color", toneColor(tone));
+        const icon = document.createElement("span");
+        icon.className = "fact-icon";
+        icon.innerHTML = iconMarkup(iconNames[index % iconNames.length]);
+        const text = document.createElement("span");
+        text.textContent = value;
+        item.append(icon, text);
+        container.appendChild(item);
+      }
+    }
+
+    function renderQuotes(container, items) {
+      clear(container);
+      const normalized = normalizeArray(items).map(textOf).filter(Boolean);
+      if (!normalized.length) {
+        container.appendChild(empty("暂无可摘录语句"));
+        return;
+      }
+      const colors = [
+        ["#edf7ed", "var(--color-green)"],
+        ["#edf4fa", "var(--color-blue)"],
+        ["#f1eef8", "var(--color-violet)"],
+        ["#fbf2e2", "var(--color-gold)"],
+      ];
+      for (const [index, value] of normalized.slice(0, 4).entries()) {
+        const quote = document.createElement("blockquote");
+        quote.style.setProperty("--quote-bg", colors[index % colors.length][0]);
+        quote.style.setProperty("--quote-color", colors[index % colors.length][1]);
+        quote.textContent = value;
+        container.appendChild(quote);
+      }
+    }
+
+    function renderInfoList(container, items, emptyText) {
+      clear(container);
+      const normalized = normalizeArray(items).map(textOf).filter(Boolean);
+      if (!normalized.length) {
+        const item = document.createElement("li");
+        item.className = "info-item";
+        const icon = document.createElement("span");
+        icon.className = "info-icon";
+        icon.innerHTML = iconMarkup("bulb");
+        item.append(icon, document.createTextNode(emptyText));
+        container.appendChild(item);
+        return;
+      }
+      const icons = ["clock", "bulb", "star"];
+      const tones = ["sleep", "progress", "gain"];
+      for (const [index, value] of normalized.slice(0, 4).entries()) {
+        const item = document.createElement("li");
+        item.className = "info-item";
+        item.style.setProperty("--item-color", toneColor(tones[index % tones.length]));
+        const icon = document.createElement("span");
+        icon.className = "info-icon";
+        icon.innerHTML = iconMarkup(icons[index % icons.length]);
+        const text = document.createElement("span");
+        text.textContent = value;
+        item.append(icon, text);
+        container.appendChild(item);
+      }
+    }
+
+    function renderBars(container, items) {
+      clear(container);
+      const points = normalizeArray(items).filter((item) => item && typeof item === "object");
+      if (!points.length) {
+        container.appendChild(empty("暂无时间分布"));
+        return;
+      }
+      for (const item of points.slice(0, 5)) {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        const label = document.createElement("div");
+        label.className = "bar-label";
+        label.textContent = item.label || "";
+        const track = document.createElement("div");
+        track.className = "bar-track";
+        const fill = document.createElement("div");
+        fill.className = "bar-fill";
+        fill.style.width = `${clampPercentage(item.value)}%`;
+        track.appendChild(fill);
+        row.append(label, track);
+        if (item.detail) {
+          const detail = document.createElement("div");
+          detail.className = "bar-detail";
+          detail.textContent = item.detail;
+          row.appendChild(detail);
+        }
+        container.appendChild(row);
+      }
+    }
+
+    function renderTrend(container, items) {
+      clear(container);
+      const points = normalizeArray(items).filter((item) => item && typeof item === "object");
+      if (!points.length) {
+        container.appendChild(empty("暂无能量趋势"));
+        return;
+      }
+      const width = 300;
+      const height = 112;
+      const padX = 10;
+      const padY = 10;
+      const usableWidth = width - padX * 2;
+      const usableHeight = height - padY * 2;
+      const coords = points.slice(0, 6).map((item, index, source) => {
+        const x = padX + (source.length === 1 ? usableWidth / 2 : usableWidth * index / (source.length - 1));
+        const y = padY + usableHeight - usableHeight * clampPercentage(item.value) / 100;
+        return { x, y };
+      });
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "trend-svg");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+      gradient.setAttribute("id", "trendFill");
+      gradient.setAttribute("x1", "0");
+      gradient.setAttribute("x2", "0");
+      gradient.setAttribute("y1", "0");
+      gradient.setAttribute("y2", "1");
+      const stopA = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+      stopA.setAttribute("offset", "0%");
+      stopA.setAttribute("stop-color", "var(--color-green)");
+      stopA.setAttribute("stop-opacity", "0.28");
+      const stopB = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+      stopB.setAttribute("offset", "100%");
+      stopB.setAttribute("stop-color", "var(--color-green)");
+      stopB.setAttribute("stop-opacity", "0");
+      gradient.append(stopA, stopB);
+      defs.appendChild(gradient);
+      svg.appendChild(defs);
+
+      for (const y of [22, 56, 90]) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", "0");
+        line.setAttribute("x2", width);
+        line.setAttribute("y1", y);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", "var(--color-line)");
+        line.setAttribute("stroke-width", "1");
+        svg.appendChild(line);
+      }
+
+      const area = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      const areaPoints = [
+        `${coords[0].x},${height - padY}`,
+        ...coords.map((point) => `${point.x},${point.y}`),
+        `${coords[coords.length - 1].x},${height - padY}`,
+      ].join(" ");
+      area.setAttribute("points", areaPoints);
+      area.setAttribute("fill", "url(#trendFill)");
+      svg.appendChild(area);
+
+      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      polyline.setAttribute("points", coords.map((point) => `${point.x},${point.y}`).join(" "));
+      polyline.setAttribute("fill", "none");
+      polyline.setAttribute("stroke", "var(--color-green)");
+      polyline.setAttribute("stroke-width", "3");
+      polyline.setAttribute("stroke-linecap", "round");
+      polyline.setAttribute("stroke-linejoin", "round");
+      svg.appendChild(polyline);
+
+      for (const point of coords) {
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.setAttribute("cx", point.x);
+        dot.setAttribute("cy", point.y);
+        dot.setAttribute("r", "4");
+        dot.setAttribute("fill", "var(--color-green)");
+        dot.setAttribute("stroke", "white");
+        dot.setAttribute("stroke-width", "2");
+        svg.appendChild(dot);
+      }
+
+      const labels = document.createElement("div");
+      labels.className = "trend-labels";
+      for (const item of points.slice(0, 6)) {
+        const label = document.createElement("span");
+        label.textContent = item.label || "";
+        labels.appendChild(label);
+      }
+      container.append(svg, labels);
+    }
+
+    function deriveMood(source) {
+      const overview = normalizeArray(source.stateOverview);
+      const moodItem = overview.find((item) => item && typeof item === "object" && normalizeTone(item.tone || item.label) === "mood") || {};
+      const label = source.moodLabel || source.mood || source.emotion || moodItem.value || "平稳";
+      const detail = source.moodDetail || moodItem.detail || "情绪基调以平稳、务实为主，偶有压力但可控。";
+      const emoji = pickMoodEmoji(source.moodEmoji || source.emoji || moodItem.emoji || moodItem.icon, label);
+      return {
+        emoji,
+        label: String(label || "平稳"),
+        detail: String(detail || ""),
+      };
+    }
+
+    function pickMoodEmoji(value, label) {
+      const direct = extractEmoji(value);
+      if (direct) return direct;
+      const text = `${label || ""} ${value || ""}`;
+      const pairs = [
+        [/开心|高兴|愉快|明亮|轻松/u, "😊"],
+        [/满足|收获|安心|安稳|踏实/u, "💗"],
+        [/平稳|平静|平和|稳定|可控/u, "😌"],
+        [/专注|投入|高效|清醒/u, "🎯"],
+        [/期待|希望|憧憬/u, "✨"],
+        [/疲惫|累|困|透支/u, "😮‍💨"],
+        [/焦虑|紧张|担心|压力|赶/u, "😟"],
+        [/烦躁|生气|急躁|恼/u, "😤"],
+        [/低落|难过|沮丧|委屈/u, "😔"],
+        [/迷茫|不确定|混乱/u, "🫧"],
+      ];
+      const match = pairs.find(([pattern]) => pattern.test(text));
+      return match ? match[1] : "😌";
+    }
+
+    function extractEmoji(value) {
+      const text = String(value || "").trim();
+      const match = text.match(/(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/u);
+      return match ? match[1] : "";
+    }
+
+    function formatDateTitle(value) {
+      const text = String(value || "");
+      const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/u);
+      if (!match) return text;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const weekNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      const week = weekNames[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+      return `${month}月${day}日（${week}）`;
+    }
+
+    function normalizeArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+
+    function textOf(value) {
+      if (typeof value === "string") return value;
+      if (!value || typeof value !== "object") return "";
+      return value.text || value.title || value.summary || value.value || value.label || "";
+    }
+
+    function normalizeTone(value) {
+      const text = String(value || "").toLowerCase();
+      if (/mood|心情|情绪|情緒/u.test(text)) return "mood";
+      if (/stress|压力|壓力|挑战|挑戰/u.test(text)) return "stress";
+      if (/sleep|睡眠|休息/u.test(text)) return "sleep";
+      if (/progress|进度|進度|专注|專注|动力|動力/u.test(text)) return "progress";
+      if (/gain|harvest|收获|收穫|满足|滿足/u.test(text)) return "gain";
+      return "neutral";
+    }
+
+    function toneColor(tone) {
+      return {
+        mood: "var(--color-green)",
+        stress: "var(--color-accent)",
+        sleep: "var(--color-violet)",
+        progress: "var(--color-blue)",
+        gain: "var(--color-gold)",
+        neutral: "var(--color-muted)",
+      }[tone] || "var(--color-muted)";
+    }
+
+    function toneIcon(tone) {
+      return {
+        stress: "cloud",
+        sleep: "moon",
+        progress: "target",
+        gain: "heart",
+        neutral: "wave",
+      }[tone] || "leaf";
+    }
+
+    function clampPercentage(value) {
+      const numeric = Number.parseFloat(String(value || "").replace("%", ""));
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(100, Math.round(numeric)));
+    }
+
+    function empty(value) {
+      const element = document.createElement("div");
+      element.className = "empty";
+      element.textContent = value;
+      return element;
+    }
+
+    function clear(element) {
+      while (element && element.firstChild) element.removeChild(element.firstChild);
+    }
+
+    function iconMarkup(name) {
+      const common = 'width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+      const icons = {
+        calendar: `<svg ${common}><rect x="4" y="5" width="16" height="15" rx="3"></rect><path d="M8 3v4M16 3v4M4 10h16"></path><path d="M8.5 14h2.5M13 14h2.5"></path></svg>`,
+        bot: `<svg ${common}><path d="M12 7V4"></path><rect x="5" y="7" width="14" height="11" rx="3"></rect><path d="M9 12h.01M15 12h.01M9 16h6"></path><path d="M3 11v4M21 11v4"></path></svg>`,
+        sparkles: `<svg ${common}><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3z"></path><path d="M5 14l.9 2.1L8 17l-2.1.9L5 20l-.9-2.1L2 17l2.1-.9L5 14z"></path></svg>`,
+        leaf: `<svg ${common}><path d="M5 19c9 0 14-5 14-14C10 5 5 10 5 19z"></path><path d="M5 19c3-4 6-7 11-10"></path></svg>`,
+        target: `<svg ${common}><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 12l6-6"></path><path d="M18 6h-4V2"></path></svg>`,
+        cloud: `<svg ${common}><path d="M17.5 18H8a5 5 0 1 1 1.2-9.85A6 6 0 0 1 20 12.5 3.5 3.5 0 0 1 17.5 18z"></path></svg>`,
+        heart: `<svg ${common}><path d="M20.4 7.5c0 5-8.4 10.5-8.4 10.5S3.6 12.5 3.6 7.5A4 4 0 0 1 12 5a4 4 0 0 1 8.4 2.5z"></path></svg>`,
+        check: `<svg ${common}><rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M8 12.4l2.3 2.3L16.5 8.5"></path></svg>`,
+        bolt: `<svg ${common}><path d="M13 2L5 13h6l-1 9 8-12h-6l1-8z"></path></svg>`,
+        moon: `<svg ${common}><path d="M20 15.2A7.8 7.8 0 0 1 8.8 4 8 8 0 1 0 20 15.2z"></path></svg>`,
+        wave: `<svg ${common}><path d="M3 12h3l2-5 4 10 3-7 2 2h4"></path></svg>`,
+        star: `<svg ${common}><path d="M12 3l2.6 5.4 5.9.8-4.2 4.1 1 5.8L12 16.3 6.7 19.1l1-5.8-4.2-4.1 5.9-.8L12 3z"></path></svg>`,
+        clock: `<svg ${common}><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg>`,
+        bulb: `<svg ${common}><path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M8 14a6 6 0 1 1 8 0c-.8.7-1.2 1.5-1.2 2.5H9.2c0-1-.4-1.8-1.2-2.5z"></path></svg>`,
+      };
+      return icons[name] || icons.wave;
+    }
+  </script>
+</body>
+</html>
