@@ -73,6 +73,13 @@ function readConfig() {
     autoWeeklyReportEnabled: readBoolEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED"),
     autoWeeklyReportWeekday: resolveWeekdayEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY", "monday"),
     autoWeeklyReportTime: resolveClockTimeEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME", "23:30"),
+    proactiveChatStateFile: path.join(stateDir, "proactive-chat.json"),
+    proactiveChatEnabled: readBoolEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED"),
+    proactiveChatStartTime: resolveClockTimeEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME", "10:00"),
+    proactiveChatEndTime: resolveClockTimeEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME", "23:30"),
+    proactiveChatMinDelayMinutes: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MIN_DELAY_MINUTES", 15),
+    proactiveChatMaxDelayMinutes: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MAX_DELAY_MINUTES", 120),
+    proactiveChatPendingLimit: resolveProactiveChatPendingLimitEnv("ST_CHARACTER_WECHAT_PROACTIVE_CHAT_PENDING_LIMIT", 1),
     dailyWeatherReminderFile: path.join(stateDir, "daily-weather-reminder.json"),
     dailyWeatherReminderEnabled: readBoolEnv("ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED"),
     dailyWeatherReminderHour: resolveDailyWeatherReminderHour(),
@@ -223,6 +230,26 @@ function resolveClockTimeEnv(name, fallback = "23:30") {
     return fallback;
   }
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function resolvePositiveIntEnv(name, fallback) {
+  const value = readIntEnv(name);
+  if (!Number.isInteger(value) || value <= 0) {
+    return fallback;
+  }
+  return value;
+}
+
+function resolveProactiveChatPendingLimitEnv(name, fallback = 1) {
+  const raw = readTextEnv(name).toLowerCase();
+  if (raw === "unlimited" || raw === "none" || raw === "no-limit" || raw === "nolimit") {
+    return null;
+  }
+  const value = readIntEnv(name);
+  if (!Number.isInteger(value) || value <= 0) {
+    return fallback;
+  }
+  return value;
 }
 
 function resolveWeekdayEnv(name, fallback = "monday") {

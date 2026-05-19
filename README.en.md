@@ -54,6 +54,8 @@ After each delivered character reply, the app writes local user memory: the user
 
 You can also enable a daily weather / outfit reminder. It runs once during the selected local hour; if that hour is missed, the next normal reply that day can include it naturally.
 
+You can also enable proactive character chat. After each normal character reply, the app rolls the next proactive message inside your configured delay range. A user message resets the plan, and the maximum number of proactive turns while waiting for the user can be configured.
+
 ### Optional Long-Term Memory Search
 
 This is optional. When enabled, embeddings and optional rerank can retrieve a few relevant older local memories. The app does not send the entire history to the model every turn.

@@ -6,9 +6,14 @@ const path = require("node:path");
 const {
   CharacterWechatApp,
   buildScheduledReportMark,
+  loadProactiveChatState,
   loadScheduledReportState,
+  markProactiveChatSent,
+  markProactiveChatUserMessage,
   markScheduledReportSent,
+  resolveProactiveChatDue,
   resolveScheduledReportDue,
+  scheduleNextProactiveChat,
 } = require("../src/core/app");
 
 test("handleCheckinCommand reports character-only disabled behavior", async () => {
@@ -376,6 +381,138 @@ test("finalized manual report records the scheduled report period after the file
     assert.equal(state.sentByTarget[mark.key], "2026-05-19");
     assert.equal(state.sentDateByTarget[mark.key], "2026-05-19");
   } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("proactive chat schedules after a user reply and stops at the pending limit", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-proactive-chat-"));
+  const stateFile = path.join(tempDir, "proactive-chat.json");
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    const config = {
+      proactiveChatEnabled: true,
+      proactiveChatStateFile: stateFile,
+      proactiveChatStartTime: "10:00",
+      proactiveChatEndTime: "23:30",
+      proactiveChatMinDelayMinutes: 15,
+      proactiveChatMaxDelayMinutes: 120,
+      proactiveChatPendingLimit: 1,
+      localTimeZone: "UTC",
+    };
+
+    markProactiveChatUserMessage({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:00:00.000Z"),
+    });
+    const nextAt = scheduleNextProactiveChat({
+      filePath: stateFile,
+      config,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:00:00.000Z"),
+    });
+
+    assert.equal(nextAt, "2026-05-19T10:15:00.000Z");
+    assert.equal(resolveProactiveChatDue({
+      now: new Date("2026-05-19T10:14:00.000Z"),
+      timeZone: "UTC",
+      config,
+      state: loadProactiveChatState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+    }).due, false);
+    assert.equal(resolveProactiveChatDue({
+      now: new Date("2026-05-19T10:15:00.000Z"),
+      timeZone: "UTC",
+      config,
+      state: loadProactiveChatState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+    }).due, true);
+
+    markProactiveChatSent({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:16:00.000Z"),
+    });
+    const blockedNextAt = scheduleNextProactiveChat({
+      filePath: stateFile,
+      config,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:16:00.000Z"),
+    });
+    const state = loadProactiveChatState(stateFile);
+    const target = state.targets["account-1:sender-1:ciel"];
+
+    assert.equal(blockedNextAt, null);
+    assert.equal(target.pendingCount, 1);
+    assert.equal(target.nextAt, "");
+  } finally {
+    Math.random = originalRandom;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("proactive chat pending limit can be any number or unlimited", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-proactive-limit-"));
+  const stateFile = path.join(tempDir, "proactive-chat.json");
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    const baseConfig = {
+      proactiveChatEnabled: true,
+      proactiveChatStartTime: "10:00",
+      proactiveChatEndTime: "23:30",
+      proactiveChatMinDelayMinutes: 15,
+      proactiveChatMaxDelayMinutes: 15,
+      localTimeZone: "UTC",
+    };
+    markProactiveChatSent({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:00:00.000Z"),
+    });
+
+    assert.equal(scheduleNextProactiveChat({
+      filePath: stateFile,
+      config: { ...baseConfig, proactiveChatPendingLimit: 2 },
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:01:00.000Z"),
+    }), "2026-05-19T10:16:00.000Z");
+
+    markProactiveChatSent({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:02:00.000Z"),
+    });
+    assert.equal(scheduleNextProactiveChat({
+      filePath: stateFile,
+      config: { ...baseConfig, proactiveChatPendingLimit: null },
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:03:00.000Z"),
+    }), "2026-05-19T10:18:00.000Z");
+  } finally {
+    Math.random = originalRandom;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });

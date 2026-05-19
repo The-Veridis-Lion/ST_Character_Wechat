@@ -96,6 +96,7 @@ class CharacterWechatApp {
     this.turnGateStore = new TurnGateStore();
     this.pendingInboundByScope = new Map();
     this.pendingUserMemoryByRunKey = new Map();
+    this.pendingProactiveChatByRunKey = new Map();
     this.turnBoundaryScopeKeys = new Set();
     this.systemMessageDispatcher = null;
     this.streamDelivery = new StreamDelivery({
@@ -197,6 +198,7 @@ class CharacterWechatApp {
         try {
           await Promise.all([
             this.flushDueDailyWeatherReminder(account),
+            this.flushDueProactiveChat(account),
             this.flushDueReminders(account),
             this.flushDueScheduledReportCards(account),
             this.flushPendingInboundMessages(),
@@ -218,6 +220,7 @@ class CharacterWechatApp {
           }
           await Promise.all([
             this.flushDueDailyWeatherReminder(account),
+            this.flushDueProactiveChat(account),
             this.flushDueReminders(account),
             this.flushDueScheduledReportCards(account),
             this.flushPendingInboundMessages(),
@@ -336,6 +339,7 @@ class CharacterWechatApp {
     }
 
     this.primeDeferredRepliesForSender(normalized);
+    this.noteProactiveChatUserMessage(normalized);
     await this.handlePreparedMessage(normalized, { allowCommands: true });
   }
 
@@ -589,6 +593,7 @@ class CharacterWechatApp {
     const missedDailyReminder = !buildDailyWeatherReminderPayload
       || normalizeText(normalized?.provider).toLowerCase() === "daily_weather"
       || prepared?.reportKind
+      || prepared?.skipDailyWeatherReminder
       ? null
       : await buildDailyWeatherReminderPayload({
           accountId: normalized.accountId,
@@ -693,6 +698,15 @@ class CharacterWechatApp {
         workspaceRoot,
         prepared,
       });
+      const trackProactiveChat = typeof this.trackProactiveChatTurn === "function"
+        ? this.trackProactiveChatTurn.bind(this)
+        : CharacterWechatApp.prototype.trackProactiveChatTurn.bind(this);
+      trackProactiveChat({
+        turn,
+        bindingKey,
+        workspaceRoot,
+        prepared,
+      });
       await this.channelAdapter.sendTyping({
         userId: prepared.senderId,
         status: 1,
@@ -752,6 +766,108 @@ class CharacterWechatApp {
       itemTextById: {},
       streamingText: "",
       turnText: "",
+    });
+  }
+
+  trackProactiveChatTurn({ turn = {}, bindingKey = "", workspaceRoot = "", prepared = {} } = {}) {
+    if (!this.config?.proactiveChatEnabled || !this.pendingProactiveChatByRunKey?.set) {
+      return;
+    }
+    if (!prepared?.characterChat || !prepared?.characterId || prepared?.reportKind) {
+      return;
+    }
+    const threadId = normalizeCommandArgument(turn.threadId);
+    if (!threadId) {
+      return;
+    }
+    const provider = normalizeText(prepared.provider).toLowerCase();
+    const kind = prepared?.proactiveChat
+      ? "proactive"
+      : (
+          !prepared?.skipProactiveChatSchedule
+          && provider !== "daily_weather"
+          && provider !== "scheduled_report"
+        )
+          ? "user_reply"
+          : "";
+    if (!kind) {
+      return;
+    }
+    const turnId = normalizeCommandArgument(turn.turnId);
+    this.pendingProactiveChatByRunKey.set(buildRunKey(threadId, turnId), {
+      kind,
+      bindingKey,
+      workspaceRoot,
+      threadId,
+      turnId,
+      accountId: prepared.accountId,
+      senderId: prepared.senderId,
+      characterId: prepared.characterId,
+      characterName: prepared.characterName,
+      receivedAt: prepared.receivedAt,
+    });
+  }
+
+  noteProactiveChatUserMessage(normalized = {}) {
+    if (!this.config?.proactiveChatEnabled || !normalized?.accountId || !normalized?.senderId) {
+      return;
+    }
+    const sessionStore = this.runtimeAdapter?.getSessionStore?.();
+    if (!sessionStore?.buildBindingKey) {
+      return;
+    }
+    const baseBindingKey = sessionStore.buildBindingKey({
+      workspaceId: normalized.workspaceId || this.config.workspaceId,
+      accountId: normalized.accountId,
+      senderId: normalized.senderId,
+    });
+    const characterId = this.characterStateStore?.getActiveCharacterId?.(baseBindingKey) || "";
+    if (!characterId) {
+      return;
+    }
+    markProactiveChatUserMessage({
+      filePath: this.config.proactiveChatStateFile,
+      accountId: normalized.accountId,
+      senderId: normalized.senderId,
+      characterId,
+      now: new Date(normalized.receivedAt || Date.now()),
+    });
+  }
+
+  finalizeProactiveChatTurn(pendingProactive, event) {
+    if (!pendingProactive || !this.config?.proactiveChatEnabled) {
+      return;
+    }
+    const now = new Date();
+    if (pendingProactive.kind === "user_reply") {
+      scheduleNextProactiveChat({
+        filePath: this.config.proactiveChatStateFile,
+        config: this.config,
+        accountId: pendingProactive.accountId,
+        senderId: pendingProactive.senderId,
+        characterId: pendingProactive.characterId,
+        now,
+      });
+      return;
+    }
+    if (pendingProactive.kind !== "proactive") {
+      return;
+    }
+    markProactiveChatSent({
+      filePath: this.config.proactiveChatStateFile,
+      config: this.config,
+      accountId: pendingProactive.accountId,
+      senderId: pendingProactive.senderId,
+      characterId: pendingProactive.characterId,
+      now,
+    });
+    scheduleNextProactiveChat({
+      filePath: this.config.proactiveChatStateFile,
+      config: this.config,
+      accountId: pendingProactive.accountId,
+      senderId: pendingProactive.senderId,
+      characterId: pendingProactive.characterId,
+      now,
     });
   }
 
@@ -1537,6 +1653,127 @@ class CharacterWechatApp {
     if (!dispatched) {
       return;
     }
+  }
+
+  async flushDueProactiveChat(account) {
+    if (!this.config.proactiveChatEnabled) {
+      return;
+    }
+    const senderId = this.activeSenderId || resolvePreferredSenderId({
+      config: this.config,
+      accountId: account.accountId,
+      sessionStore: this.runtimeAdapter?.getSessionStore?.(),
+    });
+    if (!senderId) {
+      return;
+    }
+    const contextTokens = this.channelAdapter.getKnownContextTokens?.() || {};
+    const contextToken = normalizeCommandArgument(contextTokens[senderId]);
+    if (!contextToken) {
+      return;
+    }
+    const baseBindingKey = this.runtimeAdapter.getSessionStore().buildBindingKey({
+      workspaceId: this.config.workspaceId,
+      accountId: account.accountId,
+      senderId,
+    });
+    const activeCharacterId = this.characterStateStore?.getActiveCharacterId?.(baseBindingKey) || "";
+    if (!activeCharacterId) {
+      return;
+    }
+    const state = loadProactiveChatState(this.config.proactiveChatStateFile);
+    const due = resolveProactiveChatDue({
+      now: new Date(),
+      timeZone: resolveConfiguredTimeZone(this.config),
+      config: this.config,
+      state,
+      accountId: account.accountId,
+      senderId,
+      characterId: activeCharacterId,
+    });
+    if (due.stateChanged) {
+      saveProactiveChatState(this.config.proactiveChatStateFile, state);
+    }
+    if (!due.due) {
+      return;
+    }
+    const workspaceRoot = this.resolveWorkspaceRoot(baseBindingKey);
+    const runtimeScope = await this.resolveCharacterRuntimeScope({
+      normalized: {
+        provider: "proactive_chat",
+        workspaceId: this.config.workspaceId,
+        accountId: account.accountId,
+        senderId,
+        contextToken,
+      },
+      baseBindingKey,
+      workspaceRoot,
+      replyTarget: {
+        userId: senderId,
+        contextToken,
+        provider: "proactive_chat",
+      },
+      characterId: activeCharacterId,
+    });
+    if (!runtimeScope?.characterChat) {
+      return;
+    }
+    if (this.isTurnDispatchBlocked(runtimeScope.bindingKey, workspaceRoot) || this.hasPendingInboundMessage(runtimeScope.bindingKey, workspaceRoot)) {
+      return;
+    }
+    const normalized = {
+      provider: "proactive_chat",
+      workspaceId: this.config.workspaceId,
+      accountId: account.accountId,
+      chatId: senderId,
+      senderId,
+      messageId: `proactive-chat:${due.nextAt || Date.now()}`,
+      text: "",
+      command: "message",
+      contextToken,
+      receivedAt: new Date().toISOString(),
+      workspaceRoot,
+    };
+    const prepared = {
+      ...normalized,
+      text: "",
+      originalText: "",
+      characterUserMessage: buildProactiveChatUserMessage({
+        pendingCount: due.pendingCount,
+        pendingLimit: this.config.proactiveChatPendingLimit,
+      }),
+      hasCharacterAttachmentContext: false,
+      skipUserMemory: true,
+      skipDailyWeatherReminder: true,
+      proactiveChat: true,
+    };
+    const runtimeTurn = await this.prepareCharacterRuntimeTurn({
+      normalized,
+      baseBindingKey,
+      workspaceRoot,
+      prepared,
+      replyTarget: {
+        userId: senderId,
+        contextToken,
+        provider: "proactive_chat",
+      },
+      runtimeScope,
+    });
+    if (!runtimeTurn) {
+      return;
+    }
+    clearProactiveChatNextAt({
+      filePath: this.config.proactiveChatStateFile,
+      accountId: account.accountId,
+      senderId,
+      characterId: activeCharacterId,
+      now: new Date(),
+    });
+    await this.dispatchPreparedTurn({
+      bindingKey: runtimeTurn.bindingKey || runtimeScope.bindingKey,
+      workspaceRoot,
+      prepared: runtimeTurn.prepared,
+    });
   }
 
   async buildDailyWeatherReminderPayload({ accountId = "", senderId = "", mode = "proactive" } = {}) {
@@ -2847,6 +3084,11 @@ class CharacterWechatApp {
       if (pendingMemory && this.pendingUserMemoryByRunKey?.delete) {
         this.pendingUserMemoryByRunKey.delete(pendingMemoryState.runKey);
       }
+      const pendingProactiveState = findPendingRunState(this.pendingProactiveChatByRunKey, event);
+      const pendingProactive = pendingProactiveState?.operation || null;
+      if (pendingProactive && this.pendingProactiveChatByRunKey?.delete) {
+        this.pendingProactiveChatByRunKey.delete(pendingProactiveState.runKey);
+      }
       const sessionStore = this.runtimeAdapter.getSessionStore();
       sessionStore.clearApprovalPrompt(event.payload.threadId);
       const linked = sessionStore.findBindingForThreadId(event.payload.threadId);
@@ -2909,6 +3151,9 @@ class CharacterWechatApp {
         }
         if (pendingMemory && event.type === "runtime.turn.completed") {
           this.finalizeUserMemoryForTurn(pendingMemory, event);
+        }
+        if (pendingProactive && event.type === "runtime.turn.completed") {
+          this.finalizeProactiveChatTurn(pendingProactive, event);
         }
         if (!pendingOperation && event.type === "runtime.turn.completed" && linked?.bindingKey && linked?.workspaceRoot) {
           await this.maybeAutoCompactThread(linked).catch((error) => {
@@ -3408,6 +3653,11 @@ function sleep(ms) {
 
 module.exports = {
   CharacterWechatApp,
+  loadProactiveChatState,
+  markProactiveChatSent,
+  markProactiveChatUserMessage,
+  resolveProactiveChatDue,
+  scheduleNextProactiveChat,
   buildScheduledReportMark,
   loadScheduledReportState,
   markScheduledReportSent,
@@ -4038,6 +4288,238 @@ function resolveValidTimeZone(timeZone = "") {
   } catch {
     return "Asia/Shanghai";
   }
+}
+
+function resolveProactiveChatDue({
+  now = new Date(),
+  timeZone = "Asia/Shanghai",
+  config = {},
+  state = {},
+  accountId = "",
+  senderId = "",
+  characterId = "",
+} = {}) {
+  if (!config.proactiveChatEnabled) {
+    return { due: false };
+  }
+  const key = buildProactiveChatStateKey(accountId, senderId, characterId);
+  const target = state?.targets?.[key] || null;
+  if (!target?.nextAt) {
+    return { due: false };
+  }
+  const pendingCount = normalizeNonNegativeInt(target.pendingCount);
+  if (!canSendMoreProactiveChats(pendingCount, config.proactiveChatPendingLimit)) {
+    target.nextAt = "";
+    target.updatedAt = now.toISOString();
+    return { due: false, stateChanged: true, pendingCount };
+  }
+  const nextAtMs = Date.parse(target.nextAt);
+  if (!Number.isFinite(nextAtMs)) {
+    target.nextAt = "";
+    target.updatedAt = now.toISOString();
+    return { due: false, stateChanged: true, pendingCount };
+  }
+  if (now.getTime() < nextAtMs) {
+    return { due: false, nextAt: target.nextAt, pendingCount };
+  }
+  if (!isDateWithinProactiveWindow(now, timeZone, config)) {
+    const nextAt = rollNextProactiveChatAt(now, config, timeZone);
+    target.nextAt = nextAt.toISOString();
+    target.updatedAt = now.toISOString();
+    return { due: false, stateChanged: true, nextAt: target.nextAt, pendingCount };
+  }
+  return { due: true, nextAt: target.nextAt, pendingCount };
+}
+
+function markProactiveChatUserMessage({
+  filePath = "",
+  accountId = "",
+  senderId = "",
+  characterId = "",
+  now = new Date(),
+} = {}) {
+  if (!filePath || !accountId || !senderId || !characterId) {
+    return;
+  }
+  const state = loadProactiveChatState(filePath);
+  const target = ensureProactiveChatTarget(state, buildProactiveChatStateKey(accountId, senderId, characterId));
+  target.lastUserMessageAt = now.toISOString();
+  target.pendingCount = 0;
+  target.nextAt = "";
+  target.updatedAt = now.toISOString();
+  saveProactiveChatState(filePath, state);
+}
+
+function scheduleNextProactiveChat({
+  filePath = "",
+  config = {},
+  accountId = "",
+  senderId = "",
+  characterId = "",
+  now = new Date(),
+} = {}) {
+  if (!filePath || !config.proactiveChatEnabled || !accountId || !senderId || !characterId) {
+    return null;
+  }
+  const state = loadProactiveChatState(filePath);
+  const target = ensureProactiveChatTarget(state, buildProactiveChatStateKey(accountId, senderId, characterId));
+  const pendingCount = normalizeNonNegativeInt(target.pendingCount);
+  if (!canSendMoreProactiveChats(pendingCount, config.proactiveChatPendingLimit)) {
+    target.nextAt = "";
+    target.updatedAt = now.toISOString();
+    saveProactiveChatState(filePath, state);
+    return null;
+  }
+  const nextAt = rollNextProactiveChatAt(now, config, resolveConfiguredTimeZone(config));
+  target.nextAt = nextAt.toISOString();
+  target.updatedAt = now.toISOString();
+  saveProactiveChatState(filePath, state);
+  return target.nextAt;
+}
+
+function markProactiveChatSent({
+  filePath = "",
+  accountId = "",
+  senderId = "",
+  characterId = "",
+  now = new Date(),
+} = {}) {
+  if (!filePath || !accountId || !senderId || !characterId) {
+    return;
+  }
+  const state = loadProactiveChatState(filePath);
+  const target = ensureProactiveChatTarget(state, buildProactiveChatStateKey(accountId, senderId, characterId));
+  target.pendingCount = normalizeNonNegativeInt(target.pendingCount) + 1;
+  target.lastProactiveAt = now.toISOString();
+  target.nextAt = "";
+  target.updatedAt = now.toISOString();
+  saveProactiveChatState(filePath, state);
+}
+
+function clearProactiveChatNextAt({
+  filePath = "",
+  accountId = "",
+  senderId = "",
+  characterId = "",
+  now = new Date(),
+} = {}) {
+  if (!filePath || !accountId || !senderId || !characterId) {
+    return;
+  }
+  const state = loadProactiveChatState(filePath);
+  const target = ensureProactiveChatTarget(state, buildProactiveChatStateKey(accountId, senderId, characterId));
+  target.nextAt = "";
+  target.updatedAt = now.toISOString();
+  saveProactiveChatState(filePath, state);
+}
+
+function loadProactiveChatState(filePath = "") {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return {
+      targets: parsed && typeof parsed.targets === "object" && parsed.targets ? parsed.targets : {},
+    };
+  } catch {
+    return { targets: {} };
+  }
+}
+
+function saveProactiveChatState(filePath = "", state = {}) {
+  if (!filePath) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify({
+    targets: state.targets || {},
+  }, null, 2)}\n`);
+}
+
+function ensureProactiveChatTarget(state = {}, key = "") {
+  if (!state.targets || typeof state.targets !== "object") {
+    state.targets = {};
+  }
+  if (!state.targets[key] || typeof state.targets[key] !== "object") {
+    state.targets[key] = {};
+  }
+  return state.targets[key];
+}
+
+function buildProactiveChatStateKey(accountId = "", senderId = "", characterId = "") {
+  return [
+    normalizeCommandArgument(accountId),
+    normalizeCommandArgument(senderId),
+    normalizeCommandArgument(characterId),
+  ].join(":");
+}
+
+function rollNextProactiveChatAt(now = new Date(), config = {}, timeZone = "Asia/Shanghai") {
+  const { minDelay, maxDelay } = resolveProactiveChatDelayRange(config);
+  const delayMinutes = minDelay + Math.floor(Math.random() * (maxDelay - minDelay + 1));
+  const candidate = new Date(now.getTime() + delayMinutes * 60 * 1000);
+  return moveDateIntoProactiveWindow(candidate, timeZone, config);
+}
+
+function moveDateIntoProactiveWindow(date = new Date(), timeZone = "Asia/Shanghai", config = {}) {
+  let candidate = new Date(date);
+  for (let index = 0; index < 60 * 48; index += 1) {
+    if (isDateWithinProactiveWindow(candidate, timeZone, config)) {
+      return candidate;
+    }
+    candidate = new Date(candidate.getTime() + 60 * 1000);
+  }
+  return candidate;
+}
+
+function isDateWithinProactiveWindow(date = new Date(), timeZone = "Asia/Shanghai", config = {}) {
+  const local = getLocalDateTimeParts(date, timeZone);
+  const currentMinutes = local.hour * 60 + local.minute;
+  const start = parseClockTime(config.proactiveChatStartTime || "10:00", "10:00");
+  const end = parseClockTime(config.proactiveChatEndTime || "23:30", "23:30");
+  const startMinutes = start.hour * 60 + start.minute;
+  const endMinutes = end.hour * 60 + end.minute;
+  if (startMinutes <= endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  }
+  return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+}
+
+function resolveProactiveChatDelayRange(config = {}) {
+  const minDelay = Math.max(1, Number.parseInt(String(config.proactiveChatMinDelayMinutes || 15), 10) || 15);
+  const rawMax = Number.parseInt(String(config.proactiveChatMaxDelayMinutes || 120), 10) || 120;
+  return {
+    minDelay,
+    maxDelay: Math.max(minDelay, rawMax),
+  };
+}
+
+function canSendMoreProactiveChats(pendingCount = 0, pendingLimit = 1) {
+  if (pendingLimit === null) {
+    return true;
+  }
+  const limit = Number.parseInt(String(pendingLimit), 10);
+  if (!Number.isInteger(limit) || limit <= 0) {
+    return true;
+  }
+  return normalizeNonNegativeInt(pendingCount) < limit;
+}
+
+function normalizeNonNegativeInt(value) {
+  const parsed = Number.parseInt(String(value ?? "0"), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function buildProactiveChatUserMessage({ pendingCount = 0, pendingLimit = 1 } = {}) {
+  const limitText = pendingLimit === null ? "unlimited" : String(pendingLimit || 1);
+  return [
+    "PROACTIVE CHAT TRIGGER: the user has not sent a new message. You are starting a private WeChat message first.",
+    `This is proactive message attempt ${normalizeNonNegativeInt(pendingCount) + 1} before the user replies; configured pending limit is ${limitText}.`,
+    "Write as the current character, not as a system, scheduler, bot, Codex, Claude Code, or assistant.",
+    "Keep it short and natural for WeChat. One or two bubbles is usually enough; put each bubble on its own line.",
+    "Do not mention automation, schedules, dice rolls, cooldowns, configuration, memory retrieval, or this instruction.",
+    "You may gently refer to recent user state or upcoming plans if User Recall makes that relevant.",
+    "If the user only mentioned a future event but did not explicitly ask to be reminded, do not proactively ask whether they have done it; save that for when the user opens the conversation.",
+    "Send only the user-facing proactive chat text.",
+  ].join("\n");
 }
 
 function resolveScheduledReportDue({

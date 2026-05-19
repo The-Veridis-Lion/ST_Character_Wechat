@@ -54,6 +54,8 @@ Set `ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE` and `ST_CHARACTER_WECHAT_LOCAL_LOCATIO
 
 Automatic daily / weekly report cards can be enabled from Local Settings in `00_START_HERE.html`. The default daily time is 23:30, and the default weekly time is Monday 23:30. If `/dailycard` has already been used that day, or `/weeklycard` has already been used for that week, the automatic send is skipped.
 
+Proactive character chat is also configured from Local Settings. The default allowed window is 10:00 to 23:30. After each normal character reply, the app rolls the next proactive chat between 15 and 120 minutes later. A user message resets the plan. The pending limit is a positive number of proactive turns while waiting for the user; leaving it blank means no limit. This counts proactive turns, not WeChat bubbles.
+
 If Claude Code is the local runtime, use:
 
 ```dotenv

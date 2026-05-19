@@ -735,6 +735,34 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       </div>
 
       <div class="field-section model-section">
+        <h3>角色主动聊天</h3>
+        <p class="status section-note">开启后，每次角色正常回复完成，项目会随机安排下一次主动找你聊天。你主动发消息会重置计划；如果你没有回复，可以限制角色最多连续主动几轮。这里的次数是主动聊天轮数，不是微信气泡数。</p>
+        <div class="form-grid">
+          <label>允许角色主动找你聊天
+            <select id="proactiveChatEnabled">
+              <option value="false">关闭</option>
+              <option value="true">开启</option>
+            </select>
+          </label>
+          <label class="compact-field">开始时间
+            <input id="proactiveChatStartTime" class="short-select" type="time" value="10:00">
+          </label>
+          <label class="compact-field">结束时间
+            <input id="proactiveChatEndTime" class="short-select" type="time" value="23:30">
+          </label>
+          <label class="compact-field">最短等待（分钟）
+            <input id="proactiveChatMinDelayMinutes" class="short-select" type="number" min="1" step="1" value="15">
+          </label>
+          <label class="compact-field">最长等待（分钟）
+            <input id="proactiveChatMaxDelayMinutes" class="short-select" type="number" min="1" step="1" value="120">
+          </label>
+          <label class="compact-field">未回复时最多主动轮数
+            <input id="proactiveChatPendingLimit" class="short-select" type="number" min="1" step="1" value="1" placeholder="留空不限制">
+          </label>
+        </div>
+      </div>
+
+      <div class="field-section model-section">
         <h3>自动日记 / 周记</h3>
         <p class="status section-note">如果你当天已经发送 <code>/dailycard</code>，自动日记会跳过；如果你本周已经发送 <code>/weeklycard</code>，自动周记会跳过。自动发送需要当前微信会话已经选好角色，并且角色线程里已有聊天记录。</p>
         <div class="form-grid">
@@ -1081,6 +1109,8 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     const formIds = [
       "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
       "dailyWeatherReminderEnabled", "dailyWeatherReminderHour",
+      "proactiveChatEnabled", "proactiveChatStartTime", "proactiveChatEndTime",
+      "proactiveChatMinDelayMinutes", "proactiveChatMaxDelayMinutes", "proactiveChatPendingLimit",
       "autoDailyReportEnabled", "autoDailyReportTime", "autoWeeklyReportEnabled", "autoWeeklyReportWeekday", "autoWeeklyReportTime",
       "apiBaseUrl", "apiKey", "apiModel",
       "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
@@ -1211,6 +1241,12 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         `ST_CHARACTER_WECHAT_REPORT_TIME_ZONE=${localTimeZone}`,
         `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED=${valueOf("dailyWeatherReminderEnabled") || "false"}`,
         `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR=${valueOf("dailyWeatherReminderHour") || "8"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED=${valueOf("proactiveChatEnabled") || "false"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME=${valueOf("proactiveChatStartTime") || "10:00"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME=${valueOf("proactiveChatEndTime") || "23:30"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MIN_DELAY_MINUTES=${valueOf("proactiveChatMinDelayMinutes") || "15"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MAX_DELAY_MINUTES=${valueOf("proactiveChatMaxDelayMinutes") || "120"}`,
+        `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_PENDING_LIMIT=${valueOf("proactiveChatPendingLimit") || "unlimited"}`,
         `ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED=${valueOf("autoDailyReportEnabled") || "false"}`,
         `ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME=${valueOf("autoDailyReportTime") || "23:30"}`,
         `ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED=${valueOf("autoWeeklyReportEnabled") || "false"}`,
@@ -1268,6 +1304,23 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         setStatus("envSaveStatus", "自动日记/周记时间需要是 HH:MM 格式。", "warning");
         return;
       }
+      if (!isValidClockTime(valueOf("proactiveChatStartTime") || "10:00") || !isValidClockTime(valueOf("proactiveChatEndTime") || "23:30")) {
+        setStatus("envSaveStatus", "角色主动聊天的开始和结束时间需要是 HH:MM 格式。", "warning");
+        return;
+      }
+      const proactiveMinDelayText = valueOf("proactiveChatMinDelayMinutes") || "15";
+      const proactiveMaxDelayText = valueOf("proactiveChatMaxDelayMinutes") || "120";
+      const proactiveMinDelay = Number.parseInt(proactiveMinDelayText, 10);
+      const proactiveMaxDelay = Number.parseInt(proactiveMaxDelayText, 10);
+      if (!/^[1-9]\d*$/u.test(proactiveMinDelayText) || !/^[1-9]\d*$/u.test(proactiveMaxDelayText) || proactiveMinDelay > proactiveMaxDelay) {
+        setStatus("envSaveStatus", "角色主动聊天等待时间需要是正整数，且最短等待不能大于最长等待。", "warning");
+        return;
+      }
+      const proactivePendingLimit = valueOf("proactiveChatPendingLimit");
+      if (proactivePendingLimit && !/^[1-9]\d*$/u.test(proactivePendingLimit)) {
+        setStatus("envSaveStatus", "未回复时最多主动轮数需要是正整数；留空表示不限制。", "warning");
+        return;
+      }
       if (valueOf("runtimeSelect") === "api") {
         if (!valueOf("apiBaseUrl") || !valueOf("apiKey")) {
           setStatus("envSaveStatus", "请先填写 API 地址和 API 密钥。", "warning");
@@ -1299,6 +1352,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "切换 API 时会替换旧的远程 API 配置，避免旧 provider 混在一起。",
         "开启长期记忆语义检索后，会把新增本地记忆写入本地索引；首次开启或更换 embedding 模型时会重建索引。",
         "开启每日天气/穿衣提醒后，项目会在你选择的小时里每天提醒一次；如果错过，会在当天第一次正常回复里带上提醒。",
+        "开启角色主动聊天后，用户主动发消息会重置下一次主动聊天计划；未回复时最多主动轮数按你填写的数字执行，留空表示不限制。",
         "开启自动日记/周记后，如果你当天或本周已经用指令生成过，自动发送会跳过。",
         ".env 可能包含 API 密钥，只保存在本机，不要提交 GitHub。",
         "如果你是通过 npm run manual 打开的，会直接写入项目根目录 .env。",
@@ -1542,6 +1596,12 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MIN_DELAY_MINUTES",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MAX_DELAY_MINUTES",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_PENDING_LIMIT",
         "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED",
         "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME",
         "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED",
@@ -1590,6 +1650,12 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MIN_DELAY_MINUTES",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MAX_DELAY_MINUTES",
+        "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_PENDING_LIMIT",
         "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED",
         "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME",
         "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED",
