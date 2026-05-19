@@ -3,6 +3,8 @@ setlocal
 
 cd /d "%~dp0"
 title Enable ST Character WeChat Startup
+set "STCW_ROOT=%CD%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=$env:STCW_ROOT; if ($root) { Get-ChildItem -LiteralPath $root -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.bat','.cmd','.ps1','.html' } | Unblock-File -ErrorAction SilentlyContinue }" >nul 2>nul
 
 set "STCW_TARGET=%~dp001_START_WECHAT.bat"
 set "STCW_WORKDIR=%~dp0"

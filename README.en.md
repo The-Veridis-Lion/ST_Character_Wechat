@@ -81,6 +81,8 @@ Windows users will see these root files after setup:
 
 Startup-on-boot uses the normal start script. It does not update during Windows boot. Run `04_UPDATE_AND_START_WECHAT.bat` manually when you want to update. It works from a git clone and from a GitHub ZIP folder; the first run connects the ZIP folder to the GitHub update source. Updates refresh app files and run `npm install`, but do not clean `.env`, character cards, local memory, reports, state folders, or `node_modules/`.
 
+Windows may show `Unknown Publisher` the first time a downloaded bat is opened. After you click `Run`, the script unblocks launcher files in this folder, so the other bat files usually stop showing the same prompt.
+
 ## Common WeChat Commands
 
 | Command | What It Does |

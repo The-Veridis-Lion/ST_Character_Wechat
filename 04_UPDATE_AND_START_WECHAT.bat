@@ -3,6 +3,8 @@ setlocal EnableExtensions
 
 cd /d "%~dp0"
 title Update and Start ST Character WeChat
+set "STCW_ROOT=%CD%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=$env:STCW_ROOT; if ($root) { Get-ChildItem -LiteralPath $root -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.bat','.cmd','.ps1','.html' } | Unblock-File -ErrorAction SilentlyContinue }" >nul 2>nul
 set "STCW_REMOTE=https://github.com/The-Veridis-Lion/ST_Character_Wechat.git"
 set "STCW_BRANCH=main"
 

@@ -76,7 +76,7 @@ ST_CHARACTER_WECHAT_API_MODEL=选择的模型_id
 8. 运行 `npm run login`。二维码会显示在当前终端窗口里；如果终端二维码显示不完整，就打开终端里打印的链接再扫码。扫码并在微信里确认登录后继续。
 9. 运行 `npm run accounts`，确认微信账号已经保存。
 10. 用 `npm run start` 启动桥。需要 shared helper 工作流时，用 `npm run shared:start`、`npm run shared:open`、`npm run shared:status`。
-11. Windows 用户后续可以双击项目根目录的 `01_START_WECHAT.bat` 一键启动；想更新到 GitHub 最新版本时，双击 `04_UPDATE_AND_START_WECHAT.bat`。它会先尝试停掉正在运行的本项目进程，再从 `https://github.com/The-Veridis-Lion/ST_Character_Wechat.git` 更新程序文件、运行 `npm install`、`npm run check` 并启动。这个脚本适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动把当前文件夹接到 GitHub 更新源。更新不会清理 `.env`、`character-cards/`、本地记忆、报告、状态目录或 `node_modules/`。需要开机自启动时，双击 `02_ENABLE_STARTUP.bat`，确认后它会在 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` 创建指向 `01_START_WECHAT.bat` 的 `ST Character WeChat.lnk`。关闭开机自启动时，双击 `05_DISABLE_STARTUP.bat`；也可以手动删除这个 Startup 文件夹里的 `ST Character WeChat.lnk`。移动项目文件夹后请重新运行 `02_ENABLE_STARTUP.bat`。
+11. Windows 用户后续可以双击项目根目录的 `01_START_WECHAT.bat` 一键启动；想更新到 GitHub 最新版本时，双击 `04_UPDATE_AND_START_WECHAT.bat`。它会先尝试停掉正在运行的本项目进程，再从 `https://github.com/The-Veridis-Lion/ST_Character_Wechat.git` 更新程序文件、运行 `npm install`、`npm run check` 并启动。这个脚本适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动把当前文件夹接到 GitHub 更新源。更新不会清理 `.env`、`character-cards/`、本地记忆、报告、状态目录或 `node_modules/`。Windows 第一次打开下载来的 bat 时可能提示 Unknown Publisher，点 Run 后，脚本会自动解除本目录启动文件的下载标记。需要开机自启动时，双击 `02_ENABLE_STARTUP.bat`，确认后它会在 `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup` 创建指向 `01_START_WECHAT.bat` 的 `ST Character WeChat.lnk`。关闭开机自启动时，双击 `05_DISABLE_STARTUP.bat`；也可以手动删除这个 Startup 文件夹里的 `ST Character WeChat.lnk`。移动项目文件夹后请重新运行 `02_ENABLE_STARTUP.bat`。
 12. 在微信里发送 `/char reload`、`/char list`、`/char use 1`，然后发送普通聊天消息测试。每日/每周长图报告可以用 `/dailycard` 和 `/weeklycard` 测试。
 
 ## 功能边界
@@ -187,7 +187,7 @@ npm run check
 
 `npm run check` 会检查所有 JavaScript 语法，并运行本地单元测试；浏览器截图渲染测试留给开发者用 `npm test` 全量执行。
 
-仓库根目录提供四个 Windows 便利脚本：`01_START_WECHAT.bat` 用来普通启动，`02_ENABLE_STARTUP.bat` 用来创建开机自启动快捷方式，`04_UPDATE_AND_START_WECHAT.bat` 用来从 GitHub 更新程序文件后启动，`05_DISABLE_STARTUP.bat` 用来删除这个快捷方式并关闭开机自启动。自启动快捷方式指向普通启动脚本，不会在开机时自动拉取更新；需要更新时手动运行 `04_UPDATE_AND_START_WECHAT.bat`。它适用于 git clone 和 GitHub ZIP 解压目录，更新时不会清理 `.env`、角色卡、本地记忆、报告、状态目录或 `node_modules/`。这些脚本需要放在 `ST_Character_Wechat` 项目根目录，和 `package.json` 同一层。
+仓库根目录提供四个 Windows 便利脚本：`01_START_WECHAT.bat` 用来普通启动，`02_ENABLE_STARTUP.bat` 用来创建开机自启动快捷方式，`04_UPDATE_AND_START_WECHAT.bat` 用来从 GitHub 更新程序文件后启动，`05_DISABLE_STARTUP.bat` 用来删除这个快捷方式并关闭开机自启动。自启动快捷方式指向普通启动脚本，不会在开机时自动拉取更新；需要更新时手动运行 `04_UPDATE_AND_START_WECHAT.bat`。它适用于 git clone 和 GitHub ZIP 解压目录，更新时不会清理 `.env`、角色卡、本地记忆、报告、状态目录或 `node_modules/`。这些脚本第一次运行后会解除本目录启动文件的 Windows 下载标记，减少 Unknown Publisher 弹窗。脚本需要放在 `ST_Character_Wechat` 项目根目录，和 `package.json` 同一层。
 
 ## 配置
 

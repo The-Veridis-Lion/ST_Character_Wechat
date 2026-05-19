@@ -552,6 +552,7 @@
         <div class="step"><p>手动安装时，先进入“本地设置”确认称呼、时区和提醒；再进入“模型 / API”选择本地 Codex、本地 Claude Code 或远程 API。如果选择远程 API，在同一页填写地址、密钥并获取模型；长期记忆检索也在这里设置。最后只在“模型 / API”的“保存配置”里保存一次本地 <code>.env</code>。如果使用下一页的自动安装 Prompt，Codex / Claude Code 会先替你创建 <code>.env</code>。</p></div>
         <div class="step"><p>运行 <code>npm run check</code> 做语法检查和本地安装自检，再运行 <code>npm run login</code>。二维码会显示在当前终端窗口里；如果终端二维码显示不完整，就打开终端里打印的链接再扫码。</p></div>
         <div class="step"><p>运行 <code>npm run start</code>，在微信里发送 <code>/char reload</code>、<code>/char list</code>、<code>/char use 1</code>，再发送普通消息测试角色聊天。之后 Windows 用户可以直接双击项目根目录的 <code>01_START_WECHAT.bat</code> 启动；想从 GitHub 更新程序并启动，就双击 <code>04_UPDATE_AND_START_WECHAT.bat</code>。它适用于 git clone 和 GitHub ZIP 解压目录；第一次在 ZIP 目录运行会自动接到 GitHub 更新源。更新会刷新程序文件并运行 <code>npm install</code>，不会清理 <code>.env</code>、角色卡、本地记忆、报告、状态目录或 <code>node_modules/</code>。</p></div>
+        <div class="step"><p>如果 Windows 第一次双击 bat 时提示 <code>Unknown Publisher</code>，这是下载文件的安全标记，不是项目额外弹窗。点 <code>Run</code> 后，脚本会自动解除本目录启动文件的下载标记，后面再打开其他 bat 通常就不会继续弹。</p></div>
         <div class="step"><p>需要开机自启动时，双击项目根目录的 <code>02_ENABLE_STARTUP.bat</code>。它会在 <code>%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup</code> 创建指向普通启动脚本的 <code>ST Character WeChat.lnk</code>，不会在开机时自动更新。以后想关闭自启，双击 <code>05_DISABLE_STARTUP.bat</code>；也可以手动删除 Startup 文件夹里的这个快捷方式。移动项目文件夹后请重新运行启用自启动的 bat。</p></div>
       </div>
     </section>

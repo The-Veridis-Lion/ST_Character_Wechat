@@ -81,6 +81,8 @@ Windows 用户安装完成后，根目录有这些入口：
 
 开机自启动只会普通启动，不会开机自动更新。需要更新时，手动运行 `04_UPDATE_AND_START_WECHAT.bat`。它适用于 git clone 目录，也适用于 GitHub ZIP 解压目录；第一次运行会把 ZIP 目录接到 GitHub 更新源。更新会刷新程序文件并运行 `npm install`，不会清理 `.env`、角色卡、本地记忆、报告、状态目录或 `node_modules/`。
 
+Windows 第一次双击从网页下载的 bat 时，可能会提示 `Unknown Publisher`。点击 `Run` 后，脚本会自动解除本目录启动文件的下载标记，后面再打开其他 bat 通常就不会继续弹。
+
 ## 微信里常用的命令
 
 | 命令 | 作用 |
