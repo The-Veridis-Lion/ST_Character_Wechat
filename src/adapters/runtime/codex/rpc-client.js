@@ -6,6 +6,7 @@ const { buildCodexMcpConfigArgs } = require("./mcp-config");
 const IS_WINDOWS = os.platform() === "win32";
 const DEFAULT_CODEX_COMMAND = "codex";
 const WINDOWS_EXECUTABLE_SUFFIX_RE = /\.(cmd|exe|bat)$/i;
+const MAX_CHILD_STDERR_CHARS = 4000;
 const CODEX_CLIENT_INFO = {
   name: "st_character_wechat_agent",
   title: "ST Character WeChat Agent",
@@ -23,6 +24,7 @@ class CodexRpcClient {
     this.socket = null;
     this.child = null;
     this.stdoutBuffer = "";
+    this.stderrBuffer = "";
     this.pending = new Map();
     this.isReady = false;
     this.messageListeners = new Set();
@@ -75,8 +77,10 @@ class CodexRpcClient {
     }
 
     this.child = child;
-    child.on("error", () => {
+    this.stderrBuffer = "";
+    child.on("error", (error) => {
       this.isReady = false;
+      this.rejectPending(new Error(`Codex app-server failed to start: ${error?.message || error}`));
     });
     child.stdout.on("data", (chunk) => {
       this.stdoutBuffer += chunk.toString("utf8");
@@ -89,8 +93,15 @@ class CodexRpcClient {
         }
       }
     });
-    child.on("close", () => {
+    child.stderr.on("data", (chunk) => {
+      this.stderrBuffer = appendLimited(this.stderrBuffer, chunk.toString("utf8"), MAX_CHILD_STDERR_CHARS);
+    });
+    child.on("close", (code, signal) => {
       this.isReady = false;
+      if (this.child === child) {
+        this.child = null;
+      }
+      this.rejectPending(buildChildExitError({ code, signal, stderr: this.stderrBuffer }));
     });
   }
 
@@ -220,6 +231,13 @@ class CodexRpcClient {
     this.isReady = false;
   }
 
+  rejectPending(error) {
+    for (const { reject } of this.pending.values()) {
+      reject(error);
+    }
+    this.pending.clear();
+  }
+
   async sendRequest(method, params) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const payload = JSON.stringify({ id, method, params });
@@ -322,6 +340,20 @@ function buildCodexConfigArgs(mcpServerConfig) {
 
 function normalizeNonEmptyString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function appendLimited(existing, addition, limit) {
+  const next = `${existing || ""}${addition || ""}`;
+  return next.length > limit ? next.slice(next.length - limit) : next;
+}
+
+function buildChildExitError({ code, signal, stderr }) {
+  const reason = signal
+    ? `signal ${signal}`
+    : `exit code ${code ?? "(unknown)"}`;
+  const detail = normalizeNonEmptyString(stderr);
+  const suffix = detail ? ` Last stderr: ${detail}` : "";
+  return new Error(`Codex app-server exited before responding (${reason}).${suffix}`);
 }
 
 function buildStartThreadParams(cwd) {
