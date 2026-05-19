@@ -106,7 +106,7 @@ function createWeixinChannelAdapter(config) {
     if (!resolvedToken) {
       throw new Error(`Missing context_token. Cannot reply to user ${userId}.`);
     }
-    const content = stripInternalReplyBlocks(String(text || ""));
+    const content = stripOuterReplyDoubleQuotes(stripInternalReplyBlocks(String(text || "")));
     if (!content.trim()) {
       return Promise.resolve();
     }
@@ -133,7 +133,7 @@ function createWeixinChannelAdapter(config) {
         const normalizedChunk = singleLine
           ? normalizeNaturalWeixinBubbleText(chunk)
           : compactPlainTextForWeixin(chunk);
-        const compactChunk = stripSentenceTailChineseFullStops(normalizedChunk) || "Completed.";
+        const compactChunk = stripOuterReplyDoubleQuotes(stripSentenceTailChineseFullStops(normalizedChunk)) || "Completed.";
         return sendText({
           baseUrl: account.baseUrl,
           token: account.token,
@@ -327,6 +327,42 @@ function normalizeNaturalWeixinBubbleText(text) {
   normalized = normalized.replace(/[ ]*，[ ]*/g, "，");
   normalized = normalized.replace(/\s+([，。！？；：,.!?])/g, "$1");
   return normalized.trim();
+}
+
+function stripOuterReplyDoubleQuotes(text) {
+  let normalized = trimOuterBlankLines(String(text || "").replace(/\r\n/g, "\n"));
+  if (!normalized) {
+    return normalized;
+  }
+
+  const quotePairs = [
+    ['"', '"'],
+    ["\u201c", "\u201d"],
+    ["\u201d", "\u201d"],
+    ["\uff02", "\uff02"],
+    ["\u300c", "\u300d"],
+    ["\u300e", "\u300f"],
+  ];
+  let changed = true;
+  while (changed && normalized) {
+    changed = false;
+    for (const [opening, closing] of quotePairs) {
+      if (normalized.startsWith(opening) && normalized.endsWith(closing)) {
+        normalized = trimOuterBlankLines(normalized.slice(opening.length, -closing.length));
+        changed = true;
+      }
+    }
+  }
+
+  const openingQuotes = new Set(['"', "\u201c", "\u201d", "\uff02", "\u300c", "\u300e"]);
+  const closingQuotes = new Set(['"', "\u201c", "\u201d", "\uff02", "\u300d", "\u300f"]);
+  while (normalized && openingQuotes.has(normalized[0])) {
+    normalized = trimOuterBlankLines(normalized.slice(1));
+  }
+  while (normalized && closingQuotes.has(normalized[normalized.length - 1])) {
+    normalized = trimOuterBlankLines(normalized.slice(0, -1));
+  }
+  return normalized;
 }
 
 function stripSentenceTailChineseFullStops(text) {
@@ -616,6 +652,7 @@ module.exports = {
   splitUtf8,
   compactPlainTextForWeixin,
   normalizeNaturalWeixinBubbleText,
+  stripOuterReplyDoubleQuotes,
   stripSentenceTailChineseFullStops,
   chunkReplyText,
   chunkReplyTextForWeixin,

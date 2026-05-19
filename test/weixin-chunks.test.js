@@ -5,6 +5,7 @@ const {
   splitUtf8,
   compactPlainTextForWeixin,
   normalizeNaturalWeixinBubbleText,
+  stripOuterReplyDoubleQuotes,
   stripSentenceTailChineseFullStops,
   chunkReplyTextForWeixin,
   mergeShortChunks,
@@ -24,6 +25,18 @@ test("compactPlainTextForWeixin collapses multiple blank lines", () => {
 test("normalizeNaturalWeixinBubbleText flattens one bubble into a single line", () => {
   const text = "第一行\n第二行\n\n第三行";
   assert.equal(normalizeNaturalWeixinBubbleText(text), "第一行 第二行，第三行");
+});
+
+test("stripOuterReplyDoubleQuotes removes only whole-reply double quotes", () => {
+  assert.equal(
+    stripOuterReplyDoubleQuotes('"Come here, little girl. The world is too loud out there."'),
+    "Come here, little girl. The world is too loud out there."
+  );
+  assert.equal(stripOuterReplyDoubleQuotes("\u201c过来，小女孩。外面的世界太吵了。\u201d"), "过来，小女孩。外面的世界太吵了。");
+  assert.equal(stripOuterReplyDoubleQuotes('"Order it, little girl. Add something. (点吧，小女孩。)'), "Order it, little girl. Add something. (点吧，小女孩。)");
+  assert.equal(stripOuterReplyDoubleQuotes('Order it, little girl. Add something. (点吧，小女孩。)"'), "Order it, little girl. Add something. (点吧，小女孩。)");
+  assert.equal(stripOuterReplyDoubleQuotes('She said "stay" softly.'), 'She said "stay" softly.');
+  assert.equal(stripOuterReplyDoubleQuotes('\u201cShe said "stay" softly.\u201d'), 'She said "stay" softly.');
 });
 
 test("stripInternalReplyBlocks removes hidden reasoning and state blocks", () => {

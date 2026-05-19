@@ -1388,10 +1388,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         setStatus("envSaveStatus", "已取消，没有写入 .env。", "warning");
         return;
       }
-      if (await saveEnvThroughManualHelper(text, { activePanelId })) return;
-      if (window.showDirectoryPicker) {
+      const preferManualHelper = shouldUseManualHelperBeforePicker();
+      if (preferManualHelper && await saveEnvThroughManualHelper(text, { activePanelId })) return;
+      if (window.showDirectoryPicker && !preferManualHelper) {
         try {
-          const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+          const directoryHandle = await window.showDirectoryPicker({ id: "st-character-wechat-root", mode: "readwrite" });
           const handle = await directoryHandle.getFileHandle(".env", { create: true });
           let existingText = "";
           try {
@@ -1414,7 +1415,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           return;
         }
       }
-      if (window.showOpenFilePicker) {
+      if (window.showOpenFilePicker && !preferManualHelper) {
         try {
           const [handle] = await window.showOpenFilePicker({
             multiple: false,
@@ -1436,8 +1437,16 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           return;
         }
       }
+      if (!preferManualHelper && await saveEnvThroughManualHelper(text, { activePanelId })) return;
       copyText(text);
-      setStatus("envSaveStatus", "当前浏览器不支持直接写入本地 .env；内容已复制。请在项目根目录创建名为 .env 的文件并粘贴，不要命名成 env.env。", "warning");
+      const fallbackMessage = preferManualHelper
+        ? "直接写入失败，内容已复制。如果你是直接双击 HTML 打开的，请重新点击“保存本地 .env”并选择项目根目录；如果通过 npm run manual 打开，请确认 helper 仍在运行。"
+        : "当前浏览器不支持直接写入本地 .env；内容已复制。请在项目根目录创建名为 .env 的文件并粘贴，不要命名成 env.env。";
+      setStatus("envSaveStatus", fallbackMessage, "warning");
+    }
+
+    function shouldUseManualHelperBeforePicker() {
+      return /^https?:$/i.test(location.protocol);
     }
 
     async function saveEnvThroughManualHelper(text, { activePanelId = "" } = {}) {
@@ -1809,9 +1818,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         return;
       }
       try {
-        const handle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "read" });
-        cardDirectoryHandle = handle;
-        await saveCardDirectoryHandle(handle);
+        const selectedHandle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "read" });
+        cardDirectoryHandle = await resolveSelectedCardDirectoryHandle(selectedHandle);
+        await saveCardDirectoryHandle(cardDirectoryHandle);
         await scanCardDirectoryHandle({ requestPermission: true });
       } catch (error) {
         if (error && error.name === "AbortError") {
@@ -1838,11 +1847,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     }
 
     async function scanFixedCardDirectoryFromHelper({ silent = false } = {}) {
-      const urls = [];
-      if (location.protocol === "http:" || location.protocol === "https:") {
-        urls.push(withCurrentProjectRootQuery(`${location.origin}/api/character-cards`));
-      }
-      urls.push(withCurrentProjectRootQuery(manualHelperCardsUrl));
+      const urls = manualHelperCardsUrls();
       if (!silent) setStatus("cardScanStatus", "正在扫描固定目录 ST_Character_Wechat/character-cards...");
       for (const url of Array.from(new Set(urls))) {
         try {
@@ -1850,6 +1855,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           if (!response.ok) continue;
           const payload = await response.json();
           if (!payload || payload.ok === false || !Array.isArray(payload.files)) continue;
+          if (!isHelperPayloadForCurrentProject(payload)) continue;
           renderCardScanResults(payload.files, `已扫描固定目录：${helperFolderLabel(payload)}。`);
           return true;
         } catch {
@@ -1859,6 +1865,15 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         setStatus("cardScanStatus", "还不能直接扫描固定目录。请确认已在项目根目录运行 npm run manual；如果直接打开 HTML，浏览器会要求首次授权一次。", "warning");
       }
       return false;
+    }
+
+    function manualHelperCardsUrls() {
+      const urls = [];
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        urls.push(withCurrentProjectRootQuery(`${location.origin}/api/character-cards`));
+      }
+      urls.push(withCurrentProjectRootQuery(manualHelperCardsUrl));
+      return Array.from(new Set(urls));
     }
 
     async function refreshCardDirectoryList() {
@@ -1873,9 +1888,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     function manualHelperImportUrls() {
       const urls = [];
       if (location.protocol === "http:" || location.protocol === "https:") {
-        urls.push(`${location.origin}/api/character-cards/import`);
+        urls.push(withCurrentProjectRootQuery(`${location.origin}/api/character-cards/import`));
       }
-      urls.push(manualHelperCardImportUrl);
+      urls.push(withCurrentProjectRootQuery(manualHelperCardImportUrl));
       return Array.from(new Set(urls));
     }
 
@@ -1886,8 +1901,20 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         name: safeName,
         contentBase64: bytesToBase64(bytes),
       };
+      const preferManualHelper = shouldUseManualHelperBeforePicker();
+      if (preferManualHelper || !window.showDirectoryPicker) {
+        const helperResult = await writeCharacterCardThroughManualHelper(payload);
+        if (helperResult) return helperResult;
+      }
+
+      const written = await writeCharacterCardThroughDirectoryHandle(safeName, bytes);
+      return { ok: true, written };
+    }
+
+    async function writeCharacterCardThroughManualHelper(payload) {
       for (const url of manualHelperImportUrls()) {
         try {
+          if (!await verifyManualHelperImportTarget(url)) continue;
           const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1895,6 +1922,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           });
           if (!response.ok) continue;
           const result = await response.json();
+          if (!isHelperPayloadForCurrentProject(result)) continue;
           if (result && result.ok !== false && result.written) {
             if (Array.isArray(result.files)) renderCardScanResults(result.files, `已扫描固定目录：${helperFolderLabel(result)}。`);
             return result;
@@ -1902,9 +1930,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         } catch {
         }
       }
-
-      const written = await writeCharacterCardThroughDirectoryHandle(safeName, bytes);
-      return { ok: true, written };
+      return null;
     }
 
     async function writeCharacterCardThroughDirectoryHandle(fileName, bytes) {
@@ -1912,7 +1938,8 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         throw new Error("请用 npm run manual 打开本页；直接双击 HTML 时浏览器不能直接写入固定目录。");
       }
       if (!cardDirectoryHandle) {
-        cardDirectoryHandle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "readwrite" });
+        const selectedHandle = await window.showDirectoryPicker({ id: "st-character-wechat-cards", mode: "readwrite" });
+        cardDirectoryHandle = await resolveSelectedCardDirectoryHandle(selectedHandle, { create: true });
         await saveCardDirectoryHandle(cardDirectoryHandle);
       }
       const granted = await requestCardDirectoryWritePermission(cardDirectoryHandle);
@@ -2048,11 +2075,36 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       }
     }
 
+    async function resolveSelectedCardDirectoryHandle(handle, { create = false } = {}) {
+      if (!handle || handle.name === "character-cards") return handle;
+      if (!await directoryLooksLikeProjectRoot(handle)) return handle;
+      try {
+        return await handle.getDirectoryHandle("character-cards", { create });
+      } catch {
+        if (create) throw new Error("所选项目根目录里无法创建 character-cards 文件夹。");
+        return handle;
+      }
+    }
+
+    async function directoryLooksLikeProjectRoot(handle) {
+      if (!handle || handle.kind !== "directory") return false;
+      try {
+        await handle.getFileHandle("package.json", { create: false });
+        await handle.getFileHandle("00_START_HERE.html", { create: false });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     async function saveCardDirectoryHandle(handle) {
       if (!("indexedDB" in window)) return;
       try {
         const db = await openCardDirectoryDb();
-        await transactCardDirectoryHandle(db, "readwrite", (store) => store.put(handle, cardDirectoryHandleKey));
+        await transactCardDirectoryHandle(db, "readwrite", (store) => store.put({
+          handle,
+          projectRoot: currentFileProjectRoot || "",
+        }, cardDirectoryHandleKey));
         db.close();
       } catch {
       }
@@ -2062,9 +2114,15 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       if (!("indexedDB" in window)) return null;
       try {
         const db = await openCardDirectoryDb();
-        const handle = await transactCardDirectoryHandle(db, "readonly", (store) => store.get(cardDirectoryHandleKey));
+        const saved = await transactCardDirectoryHandle(db, "readonly", (store) => store.get(cardDirectoryHandleKey));
         db.close();
-        return handle || null;
+        if (!saved) return null;
+        if (saved.kind === "directory") {
+          return currentFileProjectRoot ? null : saved;
+        }
+        if (!saved.handle || saved.handle.kind !== "directory") return null;
+        if (currentFileProjectRoot && !sameProjectRoot(saved.projectRoot, currentFileProjectRoot)) return null;
+        return saved.handle;
       } catch {
         return null;
       }
@@ -2825,6 +2883,38 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
 
     function currentProjectRootPayload() {
       return currentFileProjectRoot ? { projectRoot: currentFileProjectRoot } : {};
+    }
+
+    async function verifyManualHelperImportTarget(importUrl) {
+      if (!currentFileProjectRoot) return true;
+      try {
+        const listUrl = importUrl.replace(/\/import(?=([?#]|$))/u, "");
+        const response = await fetch(withCurrentProjectRootQuery(listUrl), { cache: "no-store" });
+        if (!response.ok) return false;
+        const payload = await response.json();
+        return isHelperPayloadForCurrentProject(payload);
+      } catch {
+        return false;
+      }
+    }
+
+    function isHelperPayloadForCurrentProject(payload) {
+      if (!currentFileProjectRoot) return true;
+      return sameProjectRoot(payload && payload.root, currentFileProjectRoot);
+    }
+
+    function sameProjectRoot(left, right) {
+      const normalizedLeft = normalizeProjectRootForCompare(left);
+      const normalizedRight = normalizeProjectRootForCompare(right);
+      return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+    }
+
+    function normalizeProjectRootForCompare(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\//gu, "\\")
+        .replace(/[\\]+$/u, "")
+        .toLowerCase();
     }
 
     function helperFolderLabel(payload) {

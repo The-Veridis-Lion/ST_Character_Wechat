@@ -165,10 +165,10 @@ function decodeImportContent(payload) {
   return buffer;
 }
 
-async function handleImportCharacterCard(request, response) {
+async function handleImportCharacterCard(request, response, requestedRoot = "") {
   try {
     const payload = await readJsonBody(request);
-    const { root: projectRoot, requested } = resolveRequestedRoot(payload?.projectRoot);
+    const { root: projectRoot, requested } = resolveRequestedRoot(payload?.projectRoot || requestedRoot);
     const cardDir = resolveCardDir(projectRoot, { preferProjectRoot: requested });
     fs.mkdirSync(cardDir, { recursive: true });
     const fileName = normalizeCardFileName(payload?.name);
@@ -277,7 +277,7 @@ function handleRequest(request, response) {
     return;
   }
   if (url.pathname === "/api/character-cards/import" && request.method === "POST") {
-    handleImportCharacterCard(request, response);
+    handleImportCharacterCard(request, response, url.searchParams.get("root"));
     return;
   }
   if (url.pathname === "/api/env" && request.method === "GET") {
