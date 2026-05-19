@@ -261,11 +261,13 @@
       padding: 9px 11px;
     }
 
-    .compact-field select {
+    .compact-field select,
+    .compact-field input[type="time"] {
       max-width: 360px;
     }
 
-    .compact-field select.short-select {
+    .compact-field select.short-select,
+    .compact-field input.short-select {
       max-width: 150px;
     }
 
@@ -625,7 +627,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
 
     <section id="runtime" class="panel">
       <h2>本地设置</h2>
-      <p>这里配置角色对你的称呼、你的代词、允许聊天的微信发送者、当地时间和每日提醒。模型、API 和长期记忆检索请到“模型 / API”页设置。</p>
+      <p>这里配置角色对你的称呼、你的代词、允许聊天的微信发送者、当地时间、每日提醒和自动日记/周记。模型、API 和长期记忆检索请到“模型 / API”页设置。</p>
       <p>这里改完不用单独保存。确认本地设置后，去“模型 / API”页完成模型配置，并在那里一次写入项目根目录的 <code>.env</code>。</p>
 
       <div class="field-section model-section">
@@ -728,6 +730,42 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
               <option value="22">22:00</option>
               <option value="23">23:00</option>
             </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-section model-section">
+        <h3>自动日记 / 周记</h3>
+        <p class="status section-note">如果你当天已经发送 <code>/dailycard</code>，自动日记会跳过；如果你本周已经发送 <code>/weeklycard</code>，自动周记会跳过。自动发送需要当前微信会话已经选好角色，并且角色线程里已有聊天记录。</p>
+        <div class="form-grid">
+          <label>自动日记长图
+            <select id="autoDailyReportEnabled">
+              <option value="false">关闭</option>
+              <option value="true">开启，没主动发就自动发</option>
+            </select>
+          </label>
+          <label class="compact-field">日记时间
+            <input id="autoDailyReportTime" class="short-select" type="time" value="23:30">
+          </label>
+          <label>自动周记长图
+            <select id="autoWeeklyReportEnabled">
+              <option value="false">关闭</option>
+              <option value="true">开启，没主动发就自动发</option>
+            </select>
+          </label>
+          <label class="compact-field">周记发送日
+            <select id="autoWeeklyReportWeekday" class="short-select">
+              <option value="monday" selected>周一</option>
+              <option value="tuesday">周二</option>
+              <option value="wednesday">周三</option>
+              <option value="thursday">周四</option>
+              <option value="friday">周五</option>
+              <option value="saturday">周六</option>
+              <option value="sunday">周日</option>
+            </select>
+          </label>
+          <label class="compact-field">周记时间
+            <input id="autoWeeklyReportTime" class="short-select" type="time" value="23:30">
           </label>
         </div>
       </div>
@@ -1042,7 +1080,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
 
     const formIds = [
       "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
-      "dailyWeatherReminderEnabled", "dailyWeatherReminderHour", "apiBaseUrl", "apiKey", "apiModel",
+      "dailyWeatherReminderEnabled", "dailyWeatherReminderHour",
+      "autoDailyReportEnabled", "autoDailyReportTime", "autoWeeklyReportEnabled", "autoWeeklyReportWeekday", "autoWeeklyReportTime",
+      "apiBaseUrl", "apiKey", "apiModel",
       "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
       "memoryRetrievalApiKey", "memoryEmbeddingModel", "memoryRerankModel",
     ];
@@ -1171,6 +1211,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         `ST_CHARACTER_WECHAT_REPORT_TIME_ZONE=${localTimeZone}`,
         `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED=${valueOf("dailyWeatherReminderEnabled") || "false"}`,
         `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR=${valueOf("dailyWeatherReminderHour") || "8"}`,
+        `ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED=${valueOf("autoDailyReportEnabled") || "false"}`,
+        `ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME=${valueOf("autoDailyReportTime") || "23:30"}`,
+        `ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED=${valueOf("autoWeeklyReportEnabled") || "false"}`,
+        `ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY=${valueOf("autoWeeklyReportWeekday") || "monday"}`,
+        `ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME=${valueOf("autoWeeklyReportTime") || "23:30"}`,
         `ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED=${memoryRetrievalEnabled ? "true" : "false"}`,
         "",
       ];
@@ -1219,6 +1264,10 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         setStatus("envSaveStatus", "开启每日天气/穿衣提醒前，请先填写当前位置。", "warning");
         return;
       }
+      if (!isValidClockTime(valueOf("autoDailyReportTime") || "23:30") || !isValidClockTime(valueOf("autoWeeklyReportTime") || "23:30")) {
+        setStatus("envSaveStatus", "自动日记/周记时间需要是 HH:MM 格式。", "warning");
+        return;
+      }
       if (valueOf("runtimeSelect") === "api") {
         if (!valueOf("apiBaseUrl") || !valueOf("apiKey")) {
           setStatus("envSaveStatus", "请先填写 API 地址和 API 密钥。", "warning");
@@ -1250,6 +1299,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "切换 API 时会替换旧的远程 API 配置，避免旧 provider 混在一起。",
         "开启长期记忆语义检索后，会把新增本地记忆写入本地索引；首次开启或更换 embedding 模型时会重建索引。",
         "开启每日天气/穿衣提醒后，项目会在你选择的小时里每天提醒一次；如果错过，会在当天第一次正常回复里带上提醒。",
+        "开启自动日记/周记后，如果你当天或本周已经用指令生成过，自动发送会跳过。",
         ".env 可能包含 API 密钥，只保存在本机，不要提交 GitHub。",
         "如果你是通过 npm run manual 打开的，会直接写入项目根目录 .env。",
         "如果你是直接双击 HTML 打开的，浏览器会要求你选择 ST_Character_Wechat 项目根目录；不会让你输入文件名，也不会生成 env.env。",
@@ -1492,6 +1542,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+        "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED",
+        "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME",
       ];
       const modelSettingKeys = [
         "ST_CHARACTER_WECHAT_RUNTIME",
@@ -1535,6 +1590,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR",
         "ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME",
+        "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED",
+        "ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY",
+        "ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME",
         "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED",
         "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL",
         "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_API_KEY",
@@ -2632,6 +2692,15 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       } catch {
         return false;
       }
+    }
+
+    function isValidClockTime(value) {
+      const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) return false;
+      const hour = Number.parseInt(match[1], 10);
+      const minute = Number.parseInt(match[2], 10);
+      return Number.isInteger(hour) && hour >= 0 && hour <= 23
+        && Number.isInteger(minute) && minute >= 0 && minute <= 59;
     }
 
     function setStatus(id, message, tone = "") {

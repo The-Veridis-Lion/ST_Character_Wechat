@@ -67,6 +67,12 @@ function readConfig() {
     reportCardWidth: readIntEnv("ST_CHARACTER_WECHAT_REPORT_CARD_WIDTH") || 720,
     reportCardDeviceScaleFactor: readNumberEnv("ST_CHARACTER_WECHAT_REPORT_CARD_DEVICE_SCALE_FACTOR") || 2,
     reportTimeZone: readTextEnv("ST_CHARACTER_WECHAT_REPORT_TIME_ZONE") || localTimeZone,
+    autoReportStateFile: path.join(stateDir, "auto-report-cards.json"),
+    autoDailyReportEnabled: readBoolEnv("ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED"),
+    autoDailyReportTime: resolveClockTimeEnv("ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME", "23:30"),
+    autoWeeklyReportEnabled: readBoolEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED"),
+    autoWeeklyReportWeekday: resolveWeekdayEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY", "monday"),
+    autoWeeklyReportTime: resolveClockTimeEnv("ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME", "23:30"),
     dailyWeatherReminderFile: path.join(stateDir, "daily-weather-reminder.json"),
     dailyWeatherReminderEnabled: readBoolEnv("ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED"),
     dailyWeatherReminderHour: resolveDailyWeatherReminderHour(),
@@ -203,6 +209,48 @@ function resolveDailyWeatherReminderHour() {
     }
   }
   return 8;
+}
+
+function resolveClockTimeEnv(name, fallback = "23:30") {
+  const value = readTextEnv(name) || fallback;
+  const match = value.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) {
+    return fallback;
+  }
+  const hour = Number.parseInt(match[1], 10);
+  const minute = Number.parseInt(match[2] || "0", 10);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return fallback;
+  }
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function resolveWeekdayEnv(name, fallback = "monday") {
+  const normalized = readTextEnv(name).trim().toLowerCase();
+  const aliases = {
+    "0": "sunday",
+    "1": "monday",
+    "2": "tuesday",
+    "3": "wednesday",
+    "4": "thursday",
+    "5": "friday",
+    "6": "saturday",
+    sun: "sunday",
+    sunday: "sunday",
+    mon: "monday",
+    monday: "monday",
+    tue: "tuesday",
+    tuesday: "tuesday",
+    wed: "wednesday",
+    wednesday: "wednesday",
+    thu: "thursday",
+    thursday: "thursday",
+    fri: "friday",
+    friday: "friday",
+    sat: "saturday",
+    saturday: "saturday",
+  };
+  return aliases[normalized] || fallback;
 }
 
 function parseKnownPlacesJson(value) {

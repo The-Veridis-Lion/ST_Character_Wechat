@@ -52,6 +52,8 @@ Leave `ST_CHARACTER_WECHAT_ALLOWED_USER_IDS` empty for the first local test if t
 
 Set `ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE` and `ST_CHARACTER_WECHAT_LOCAL_LOCATION` for local time, memory, reports, and optional daily weather / outfit reminders. To enable one reminder per local day, set `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED=true` and `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR=8`; the app picks one random minute inside that hour each day. If the hour is missed, the reminder is added to the first normal reply that day.
 
+Automatic daily / weekly report cards can be enabled from Local Settings in `00_START_HERE.html`. The default daily time is 23:30, and the default weekly time is Monday 23:30. If `/dailycard` has already been used that day, or `/weeklycard` has already been used for that week, the automatic send is skipped.
+
 If Claude Code is the local runtime, use:
 
 ```dotenv
@@ -148,6 +150,8 @@ Maintenance commands that operate on a thread require an active character first.
 ## Long Image Reports
 
 Daily and weekly report commands ask the active runtime thread for structured JSON only. The app renders that JSON through fixed HTML templates under `templates/cards/`, screenshots the page with Playwright/headless browser, and sends the PNG through the existing WeChat file path.
+
+When automatic report cards are enabled, the app stores sent dates or weekly periods in local `state/auto-report-cards.json`. The state is written only after the PNG is successfully sent to WeChat. Manual `/dailycard` and `/weeklycard` runs write the same state, so the automatic send will not duplicate them.
 
 Reports summarize the user's state, topics, facts, quotes, sleep, stress, progress, and trends. They do not summarize character state and do not execute or render MVU/state variables from character cards.
 

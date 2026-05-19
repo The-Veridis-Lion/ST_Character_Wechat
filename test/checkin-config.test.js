@@ -1,6 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { CharacterWechatApp } = require("../src/core/app");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const {
+  CharacterWechatApp,
+  buildScheduledReportMark,
+  loadScheduledReportState,
+  markScheduledReportSent,
+  resolveScheduledReportDue,
+} = require("../src/core/app");
 
 test("handleCheckinCommand reports character-only disabled behavior", async () => {
   const sent = [];
@@ -228,4 +237,145 @@ test("legacy report commands point to long-card commands", async () => {
   }, "/weekly", "/weeklycard");
 
   assert.equal(sent[0], "/weekly 已替换为 /weeklycard；当前只生成长图报告。");
+});
+
+test("scheduled daily report skips after the same day is marked sent", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-auto-report-"));
+  const stateFile = path.join(tempDir, "auto-report-cards.json");
+  try {
+    const config = {
+      autoReportStateFile: stateFile,
+      autoDailyReportEnabled: true,
+      autoDailyReportTime: "23:30",
+    };
+    const firstDue = resolveScheduledReportDue({
+      now: new Date("2026-05-19T23:31:00.000Z"),
+      timeZone: "UTC",
+      reportKind: "daily",
+      config,
+      state: loadScheduledReportState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+
+    assert.equal(firstDue.due, true);
+    assert.equal(firstDue.mark.periodKey, "2026-05-19");
+
+    markScheduledReportSent(firstDue.mark);
+    const secondDue = resolveScheduledReportDue({
+      now: new Date("2026-05-19T23:45:00.000Z"),
+      timeZone: "UTC",
+      reportKind: "daily",
+      config,
+      state: loadScheduledReportState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+
+    assert.equal(secondDue.due, false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("scheduled weekly report respects selected weekday and skips once sent", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-auto-weekly-"));
+  const stateFile = path.join(tempDir, "auto-report-cards.json");
+  try {
+    const baseConfig = {
+      autoReportStateFile: stateFile,
+      autoWeeklyReportEnabled: true,
+      autoWeeklyReportTime: "23:30",
+    };
+    const wrongDay = resolveScheduledReportDue({
+      now: new Date("2026-05-18T23:31:00.000Z"),
+      timeZone: "UTC",
+      reportKind: "weekly",
+      config: { ...baseConfig, autoWeeklyReportWeekday: "sunday" },
+      state: loadScheduledReportState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+    const mondayDue = resolveScheduledReportDue({
+      now: new Date("2026-05-18T23:31:00.000Z"),
+      timeZone: "UTC",
+      reportKind: "weekly",
+      config: { ...baseConfig, autoWeeklyReportWeekday: "monday" },
+      state: loadScheduledReportState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+
+    assert.equal(wrongDay.due, false);
+    assert.equal(mondayDue.due, true);
+    assert.equal(mondayDue.mark.periodKey, "2026-05-11:2026-05-17");
+
+    markScheduledReportSent(mondayDue.mark);
+    const repeatDue = resolveScheduledReportDue({
+      now: new Date("2026-05-18T23:50:00.000Z"),
+      timeZone: "UTC",
+      reportKind: "weekly",
+      config: { ...baseConfig, autoWeeklyReportWeekday: "monday" },
+      state: loadScheduledReportState(stateFile),
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+
+    assert.equal(repeatDue.due, false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("finalized manual report records the scheduled report period after the file is sent", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-manual-report-"));
+  const stateFile = path.join(tempDir, "auto-report-cards.json");
+  try {
+    const sentFiles = [];
+    const mark = buildScheduledReportMark({
+      filePath: stateFile,
+      reportKind: "daily",
+      now: new Date("2026-05-19T20:00:00.000Z"),
+      timeZone: "UTC",
+      accountId: "account-1",
+      senderId: "sender-1",
+    });
+    const appLike = {
+      config: {
+        userName: "User",
+        reportTimeZone: "UTC",
+      },
+      projectServices: {
+        dailyDiaryCard: {
+          async renderFromRuntimeText() {
+            return { filePath: path.join(tempDir, "daily.png") };
+          },
+        },
+      },
+      channelAdapter: {
+        async sendFile(payload) {
+          sentFiles.push(payload.filePath);
+        },
+        async sendTyping() {},
+      },
+    };
+
+    await CharacterWechatApp.prototype.finalizeReportCardOperation.call(appLike, {
+      reportKind: "daily",
+      scheduledReportMark: mark,
+      userId: "sender-1",
+      contextToken: "ctx-1",
+      reportNow: "2026-05-19T20:00:00.000Z",
+      turnText: "{\"date\":\"2026-05-19\"}",
+    }, {
+      payload: {},
+    });
+
+    const state = loadScheduledReportState(stateFile);
+    assert.deepEqual(sentFiles, [path.join(tempDir, "daily.png")]);
+    assert.equal(state.sentByTarget[mark.key], "2026-05-19");
+    assert.equal(state.sentDateByTarget[mark.key], "2026-05-19");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });

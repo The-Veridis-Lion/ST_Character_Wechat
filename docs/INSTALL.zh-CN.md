@@ -52,6 +52,8 @@ ST_CHARACTER_WECHAT_ALLOWED_USER_IDS=
 
 填写 `ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE` 和 `ST_CHARACTER_WECHAT_LOCAL_LOCATION` 后，本地记忆、日报/周报和可选每日天气/穿衣提醒都会使用这个当地时间与位置。需要每天最多提醒一次时，设置 `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED=true` 和 `ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR=8`；项目每天会在这个小时里随机选一个分钟。如果错过这个小时，会在当天第一次正常回复里带上提醒。
 
+自动日记/周记可以在 `00_START_HERE.html` 的“本地设置”里开启。默认日记时间是 23:30，默认周记是周一 23:30；如果使用者当天已经发送 `/dailycard`，或者本周已经发送 `/weeklycard`，自动发送会跳过，避免重复发长图。
+
 如果本地 runtime 是 Claude Code，使用：
 
 ```dotenv
@@ -148,6 +150,8 @@ ST_CHARACTER_WECHAT_CHARACTER_CARD_DIR=./character-cards
 ## 长图报告
 
 每日和每周报告命令只要求当前 runtime thread 输出结构化 JSON。程序会把 JSON 填入 `templates/cards/` 下的固定 HTML 模板，用 Playwright/headless browser 截成长图 PNG，再通过现有微信文件发送链路发回聊天。
+
+如果开启自动日记/周记，程序会在本地 `state/auto-report-cards.json` 记录已发送的日期或周记周期。记录只在图片成功发到微信后写入；手动使用 `/dailycard` 或 `/weeklycard` 也会写入这层状态，所以同一天或同一周不会再自动补发。
 
 报告只整理用户自己的状态、话题、关键信息、代表性语句、睡眠、压力、进度、收获和趋势；不总结角色状态，也不执行或渲染角色卡里的 MVU/状态变量。
 

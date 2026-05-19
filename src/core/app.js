@@ -37,6 +37,7 @@ const {
 } = require("../adapters/runtime/shared/approval-command");
 const { createProjectTooling } = require("../tools/create-project-tooling");
 const { resolvePreferredSenderId } = require("./default-targets");
+const { resolvePreviousWeekRange } = require("../services/weekly-review-card-service");
 
 const DEFAULT_LONG_POLL_TIMEOUT_MS = 35_000;
 const MIN_LONG_POLL_TIMEOUT_MS = 2_000;
@@ -197,7 +198,7 @@ class CharacterWechatApp {
           await Promise.all([
             this.flushDueDailyWeatherReminder(account),
             this.flushDueReminders(account),
-            this.flushDueWeeklyReports(account),
+            this.flushDueScheduledReportCards(account),
             this.flushPendingInboundMessages(),
             this.flushPendingSystemMessages(),
             this.flushPendingTimelineScreenshots(account),
@@ -218,7 +219,7 @@ class CharacterWechatApp {
           await Promise.all([
             this.flushDueDailyWeatherReminder(account),
             this.flushDueReminders(account),
-            this.flushDueWeeklyReports(account),
+            this.flushDueScheduledReportCards(account),
             this.flushPendingInboundMessages(),
             this.flushPendingSystemMessages(),
             this.flushPendingTimelineScreenshots(account),
@@ -1596,8 +1597,70 @@ class CharacterWechatApp {
     }
   }
 
+  async flushDueScheduledReportCards(account) {
+    await this.flushDueScheduledReportCard(account, "daily");
+    await this.flushDueScheduledReportCard(account, "weekly");
+  }
+
   async flushDueWeeklyReports(account) {
-    void account;
+    await this.flushDueScheduledReportCards(account);
+  }
+
+  async flushDueScheduledReportCard(account, reportKind = "daily") {
+    const senderId = this.activeSenderId || resolvePreferredSenderId({
+      config: this.config,
+      accountId: account.accountId,
+      sessionStore: this.runtimeAdapter?.getSessionStore?.(),
+    });
+    if (!senderId) {
+      return;
+    }
+    const contextTokens = this.channelAdapter.getKnownContextTokens?.() || {};
+    const contextToken = normalizeCommandArgument(contextTokens[senderId]);
+    if (!contextToken) {
+      return;
+    }
+    const reportState = loadScheduledReportState(this.config.autoReportStateFile);
+    const due = resolveScheduledReportDue({
+      now: new Date(),
+      timeZone: resolveConfiguredTimeZone(this.config),
+      reportKind,
+      config: this.config,
+      state: reportState,
+      accountId: account.accountId,
+      senderId,
+    });
+    if (!due.due) {
+      return;
+    }
+    const baseBindingKey = this.runtimeAdapter.getSessionStore().buildBindingKey({
+      workspaceId: this.config.workspaceId,
+      accountId: account.accountId,
+      senderId,
+    });
+    const activeCharacterId = this.characterStateStore?.getActiveCharacterId?.(baseBindingKey) || "";
+    if (!activeCharacterId) {
+      return;
+    }
+    const workspaceRoot = this.resolveWorkspaceRoot(baseBindingKey);
+    const normalized = {
+      provider: "scheduled_report",
+      workspaceId: this.config.workspaceId,
+      accountId: account.accountId,
+      chatId: senderId,
+      senderId,
+      messageId: `scheduled-report:${reportKind}:${due.mark.periodKey}`,
+      text: reportKind === "weekly" ? "/weeklycard" : "/dailycard",
+      command: reportKind === "weekly" ? "weeklycard" : "dailycard",
+      contextToken,
+      receivedAt: new Date().toISOString(),
+      workspaceRoot,
+    };
+    await this.handleReportCardCommand(normalized, reportKind, {
+      quiet: true,
+      reportNow: due.reportNow || new Date(),
+      scheduledReportMark: due.mark,
+    });
   }
 
   async dispatchSystemMessage(message) {
@@ -1960,7 +2023,7 @@ class CharacterWechatApp {
     });
   }
 
-  async handleReportCardCommand(normalized, reportKind = "daily") {
+  async handleReportCardCommand(normalized, reportKind = "daily", options = {}) {
     const target = await resolveActiveCharacterThreadTargetForApp(this, normalized);
     if (!target) {
       return;
@@ -1969,7 +2032,11 @@ class CharacterWechatApp {
     const threadId = normalizeCommandArgument(sessionStore.getThreadIdForWorkspace(bindingKey, workspaceRoot));
     const isWeekly = reportKind === "weekly";
     const label = isWeekly ? "每周回顾长图" : "每日小结长图";
+    const reportNow = options?.reportNow instanceof Date ? options.reportNow : new Date();
     if (!threadId) {
+      if (options?.quiet) {
+        return;
+      }
       await this.channelAdapter.sendText({
         userId: normalized.senderId,
         text: `${label}需要当前角色线程里已有聊天记录。先聊几句，再使用 ${isWeekly ? "/weeklycard" : "/dailycard"}。`,
@@ -1979,6 +2046,9 @@ class CharacterWechatApp {
       return;
     }
     if (this.isTurnDispatchBlocked(bindingKey, workspaceRoot)) {
+      if (options?.quiet) {
+        return;
+      }
       await this.channelAdapter.sendText({
         userId: normalized.senderId,
         text: `当前角色线程还有一轮在运行，稍后再生成${label}。`,
@@ -1990,6 +2060,9 @@ class CharacterWechatApp {
 
     const service = resolveReportCardServiceForApp(this, reportKind);
     if (!service?.buildRuntimePrompt || !service?.renderFromRuntimeText) {
+      if (options?.quiet) {
+        return;
+      }
       await this.channelAdapter.sendText({
         userId: normalized.senderId,
         text: `${label}服务不可用，请检查本地安装。`,
@@ -2023,25 +2096,36 @@ class CharacterWechatApp {
       provider: normalized.provider,
       threadId,
       turnId: "",
+      reportNow: reportNow.toISOString(),
       characterId: card.id,
       characterName: card.name,
       itemOrder: [],
       itemTextById: {},
       streamingText: "",
       turnText: "",
+      accountId: normalized.accountId,
+      senderId: normalized.senderId,
+      scheduledReportMark: options?.scheduledReportMark || buildScheduledReportMark({
+        filePath: this.config.autoReportStateFile,
+        reportKind,
+        now: reportNow,
+        timeZone: resolveConfiguredTimeZone(this.config),
+        accountId: normalized.accountId,
+        senderId: normalized.senderId,
+      }),
     };
     const pendingRunKey = buildRunKey(threadId, "");
     this.pendingOperationByRunKey.set(pendingRunKey, pendingOperation);
     try {
       const prompt = service.buildRuntimePrompt({
-        now: new Date(),
+        now: reportNow,
         userName: this.config.userName || "User",
         timeZone: this.config.reportTimeZone,
         memoryContext: this.projectServices?.userMemory?.buildReportContext?.({
           senderId: normalized.senderId,
           characterId: card.id,
           reportKind,
-          now: new Date(),
+          now: reportNow,
         }) || null,
       });
       const runtimeParams = sessionStore.getRuntimeParamsForWorkspace(bindingKey, workspaceRoot);
@@ -2133,7 +2217,7 @@ class CharacterWechatApp {
       }
       const rendered = await service.renderFromRuntimeText({
         text,
-        now: new Date(),
+        now: pendingOperation.reportNow ? new Date(pendingOperation.reportNow) : new Date(),
         context: {
           userName: this.config.userName || "User",
           timeZone: this.config.reportTimeZone,
@@ -2146,6 +2230,7 @@ class CharacterWechatApp {
         filePath: rendered.filePath,
         contextToken: pendingOperation.contextToken,
       });
+      markScheduledReportSent(pendingOperation.scheduledReportMark);
       await this.channelAdapter.sendTyping({
         userId: pendingOperation.userId,
         status: 0,
@@ -3321,7 +3406,13 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = { CharacterWechatApp };
+module.exports = {
+  CharacterWechatApp,
+  buildScheduledReportMark,
+  loadScheduledReportState,
+  markScheduledReportSent,
+  resolveScheduledReportDue,
+};
 
 function parseChannelCommand(text) {
   const normalized = typeof text === "string" ? text.trim() : "";
@@ -3949,6 +4040,186 @@ function resolveValidTimeZone(timeZone = "") {
   }
 }
 
+function resolveScheduledReportDue({
+  now = new Date(),
+  timeZone = "Asia/Shanghai",
+  reportKind = "daily",
+  config = {},
+  state = {},
+  accountId = "",
+  senderId = "",
+} = {}) {
+  const kind = reportKind === "weekly" ? "weekly" : "daily";
+  if (kind === "daily" && !config.autoDailyReportEnabled) {
+    return { due: false };
+  }
+  if (kind === "weekly" && !config.autoWeeklyReportEnabled) {
+    return { due: false };
+  }
+  const local = getLocalDateTimeParts(now, timeZone);
+  if (!local.dateKey) {
+    return { due: false };
+  }
+  const time = parseClockTime(
+    kind === "weekly" ? config.autoWeeklyReportTime : config.autoDailyReportTime,
+    "23:30"
+  );
+  if (kind === "weekly") {
+    const selectedWeekday = weekdayNameToIndex(config.autoWeeklyReportWeekday || "monday");
+    if (local.weekday !== selectedWeekday) {
+      return { due: false };
+    }
+  }
+  const reportNow = kind === "weekly"
+    ? resolveWeeklyReportNowForSchedule(now, weekdayNameToIndex(config.autoWeeklyReportWeekday || "monday"))
+    : now;
+  const mark = buildScheduledReportMark({
+    filePath: config.autoReportStateFile,
+    reportKind: kind,
+    now: reportNow,
+    timeZone,
+    accountId,
+    senderId,
+    dateKey: local.dateKey,
+  });
+  const key = mark.key;
+  if (state?.sentByTarget?.[key] === mark.periodKey || state?.sentDateByTarget?.[key] === local.dateKey) {
+    return { due: false, mark, reportNow };
+  }
+  const currentMinutes = local.hour * 60 + local.minute;
+  const targetMinutes = time.hour * 60 + time.minute;
+  return {
+    due: currentMinutes >= targetMinutes,
+    mark,
+    reportNow,
+  };
+}
+
+function buildScheduledReportMark({
+  filePath = "",
+  reportKind = "daily",
+  now = new Date(),
+  timeZone = "Asia/Shanghai",
+  accountId = "",
+  senderId = "",
+  dateKey = "",
+} = {}) {
+  const kind = reportKind === "weekly" ? "weekly" : "daily";
+  const local = getLocalDateTimeParts(now, timeZone);
+  const localDateKey = dateKey || local.dateKey;
+  const periodKey = kind === "weekly"
+    ? (() => {
+        const range = resolvePreviousWeekRange(now, timeZone);
+        return `${range.startDate}:${range.endDate}`;
+      })()
+    : local.dateKey;
+  const key = buildScheduledReportStateKey(accountId, senderId, kind);
+  return {
+    filePath,
+    key,
+    accountId,
+    senderId,
+    reportKind: kind,
+    periodKey,
+    dateKey: localDateKey,
+  };
+}
+
+function loadScheduledReportState(filePath = "") {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return {
+      sentByTarget: parsed && typeof parsed.sentByTarget === "object" && parsed.sentByTarget
+        ? parsed.sentByTarget
+        : {},
+      sentDateByTarget: parsed && typeof parsed.sentDateByTarget === "object" && parsed.sentDateByTarget
+        ? parsed.sentDateByTarget
+        : {},
+    };
+  } catch {
+    return { sentByTarget: {}, sentDateByTarget: {} };
+  }
+}
+
+function saveScheduledReportState(filePath = "", state = {}) {
+  if (!filePath) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify({
+    sentByTarget: state.sentByTarget || {},
+    sentDateByTarget: state.sentDateByTarget || {},
+  }, null, 2)}\n`);
+}
+
+function markScheduledReportSent(mark = {}) {
+  if (!mark?.filePath || !mark?.key || !mark?.periodKey) {
+    return;
+  }
+  const state = loadScheduledReportState(mark.filePath);
+  state.sentByTarget = {
+    ...(state.sentByTarget || {}),
+    [mark.key]: mark.periodKey,
+  };
+  if (mark.dateKey) {
+    state.sentDateByTarget = {
+      ...(state.sentDateByTarget || {}),
+      [mark.key]: mark.dateKey,
+    };
+  }
+  saveScheduledReportState(mark.filePath, state);
+}
+
+function buildScheduledReportStateKey(accountId = "", senderId = "", reportKind = "daily") {
+  return `${normalizeCommandArgument(accountId)}:${normalizeCommandArgument(senderId)}:${reportKind === "weekly" ? "weekly" : "daily"}`;
+}
+
+function resolveWeeklyReportNowForSchedule(now = new Date(), weekday = 1) {
+  return weekday === 0 ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : now;
+}
+
+function parseClockTime(value = "", fallback = "23:30") {
+  const source = normalizeCommandArgument(value) || fallback;
+  const match = source.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) {
+    return parseClockTime(fallback, "23:30");
+  }
+  const hour = Number.parseInt(match[1], 10);
+  const minute = Number.parseInt(match[2] || "0", 10);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return parseClockTime(fallback, "23:30");
+  }
+  return { hour, minute };
+}
+
+function weekdayNameToIndex(value = "monday") {
+  const normalized = normalizeCommandArgument(value).toLowerCase();
+  const map = {
+    sunday: 0,
+    sun: 0,
+    "0": 0,
+    monday: 1,
+    mon: 1,
+    "1": 1,
+    tuesday: 2,
+    tue: 2,
+    "2": 2,
+    wednesday: 3,
+    wed: 3,
+    "3": 3,
+    thursday: 4,
+    thu: 4,
+    "4": 4,
+    friday: 5,
+    fri: 5,
+    "5": 5,
+    saturday: 6,
+    sat: 6,
+    "6": 6,
+  };
+  return Object.prototype.hasOwnProperty.call(map, normalized) ? map[normalized] : 1;
+}
+
 function resolveDailyWeatherReminderDue({
   now = new Date(),
   timeZone = "Asia/Shanghai",
@@ -4002,10 +4273,12 @@ function getLocalDateTimeParts(date = new Date(), timeZone = "Asia/Shanghai") {
   const hour = Number.parseInt(parts.hour || "0", 10);
   const minute = Number.parseInt(parts.minute || "0", 10);
   const dateKey = year && month && day ? `${year}-${month}-${day}` : "";
+  const weekday = dateKey ? new Date(`${dateKey}T00:00:00.000Z`).getUTCDay() : 0;
   return {
     dateKey,
     hour: Number.isFinite(hour) ? hour : 0,
     minute: Number.isFinite(minute) ? minute : 0,
+    weekday,
     display: dateKey ? `${dateKey} ${parts.hour || "00"}:${parts.minute || "00"}` : "",
   };
 }

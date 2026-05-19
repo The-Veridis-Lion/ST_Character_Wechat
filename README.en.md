@@ -46,6 +46,8 @@ MVU, variables, status bars, scripts, regex-like content, and similar internal c
 
 Send `/dailycard` or `/weeklycard` in WeChat to generate daily or weekly PNG report cards. Templates are normal HTML/CSS and can be imported, edited, and selected in the local page.
 
+You can also enable automatic daily / weekly report cards in Local Settings. The default daily time is 23:30, and the default weekly time is Monday 23:30. If the command was already used for that day or week, the automatic send is skipped.
+
 ### Local Memory And Reminders
 
 After each delivered character reply, the app writes local user memory: the user message, the sent reply, mood, stress, sleep, progress, energy signals, and dated plans found in the user's text.
