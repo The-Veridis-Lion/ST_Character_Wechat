@@ -13,9 +13,9 @@
 </div>
 
 > [!IMPORTANT]
-> ## Give Me A Snack!!
+> ## Give Me A Star!!
 > If this project helps you, please give the GitHub repo a Star.  
-> Stars are snacks for this project, and I appreciate them.
+> Stars support this project, and I appreciate them.
 
 ## What This Is
 
