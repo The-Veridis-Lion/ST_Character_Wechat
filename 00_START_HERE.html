@@ -271,6 +271,21 @@
       max-width: 150px;
     }
 
+    .compact-field-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(132px, 150px));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .inline-field-pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(132px, 150px));
+      gap: 14px;
+      align-items: end;
+    }
+
     .visually-hidden {
       position: absolute;
       width: 1px;
@@ -517,6 +532,11 @@
         grid-template-columns: 1fr;
       }
 
+      .compact-field-row,
+      .inline-field-pair {
+        grid-template-columns: 1fr;
+      }
+
       .command-row {
         grid-template-columns: 1fr;
         gap: 4px;
@@ -747,18 +767,20 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           <label class="compact-field">开始时间
             <input id="proactiveChatStartTime" class="short-select" type="time" value="10:00">
           </label>
-          <label class="compact-field">结束时间
-            <input id="proactiveChatEndTime" class="short-select" type="time" value="23:30">
-          </label>
-          <label class="compact-field">最短等待（分钟）
-            <input id="proactiveChatMinDelayMinutes" class="short-select" type="number" min="1" step="1" value="15">
-          </label>
-          <label class="compact-field">最长等待（分钟）
-            <input id="proactiveChatMaxDelayMinutes" class="short-select" type="number" min="1" step="1" value="120">
-          </label>
-          <label class="compact-field">未回复时最多主动轮数
-            <input id="proactiveChatPendingLimit" class="short-select" type="number" min="1" step="1" value="1" placeholder="留空不限制">
-          </label>
+          <div class="compact-field-row">
+            <label class="compact-field">结束时间
+              <input id="proactiveChatEndTime" class="short-select" type="time" value="23:30">
+            </label>
+            <label class="compact-field">最短等待（分钟）
+              <input id="proactiveChatMinDelayMinutes" class="short-select" type="number" min="1" step="1" value="15">
+            </label>
+            <label class="compact-field">最长等待（分钟）
+              <input id="proactiveChatMaxDelayMinutes" class="short-select" type="number" min="1" step="1" value="120">
+            </label>
+            <label class="compact-field">未回复时最多主动轮数
+              <input id="proactiveChatPendingLimit" class="short-select" type="number" min="1" step="1" value="1" placeholder="留空不限制">
+            </label>
+          </div>
         </div>
       </div>
 
@@ -781,20 +803,22 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
               <option value="true">开启，没主动发就自动发</option>
             </select>
           </label>
-          <label class="compact-field">周记发送日
-            <select id="autoWeeklyReportWeekday" class="short-select">
-              <option value="monday" selected>周一</option>
-              <option value="tuesday">周二</option>
-              <option value="wednesday">周三</option>
-              <option value="thursday">周四</option>
-              <option value="friday">周五</option>
-              <option value="saturday">周六</option>
-              <option value="sunday">周日</option>
-            </select>
-          </label>
-          <label class="compact-field">周记时间
-            <input id="autoWeeklyReportTime" class="short-select" type="time" value="23:30">
-          </label>
+          <div class="inline-field-pair">
+            <label class="compact-field">周记发送日
+              <select id="autoWeeklyReportWeekday" class="short-select">
+                <option value="monday" selected>周一</option>
+                <option value="tuesday">周二</option>
+                <option value="wednesday">周三</option>
+                <option value="thursday">周四</option>
+                <option value="friday">周五</option>
+                <option value="saturday">周六</option>
+                <option value="sunday">周日</option>
+              </select>
+            </label>
+            <label class="compact-field">周记时间
+              <input id="autoWeeklyReportTime" class="short-select" type="time" value="23:30">
+            </label>
+          </div>
         </div>
       </div>
 
