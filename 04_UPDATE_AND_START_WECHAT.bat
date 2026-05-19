@@ -1,7 +1,27 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
-cd /d "%~dp0"
+if /I not "%~1"=="--worker" (
+  set "STCW_ROOT=%~dp0"
+  set "STCW_WORKER=%TEMP%\STCW_UPDATE_AND_START_%RANDOM%%RANDOM%.bat"
+  copy /Y "%~f0" "!STCW_WORKER!" >nul
+  if errorlevel 1 (
+    echo Failed to create a temporary update helper.
+    echo.
+    pause
+    exit /b 1
+  )
+  call "!STCW_WORKER!" --worker "!STCW_ROOT!"
+  set "STCW_EXIT=!ERRORLEVEL!"
+  del "!STCW_WORKER!" >nul 2>nul
+  exit /b !STCW_EXIT!
+)
+
+if /I "%~1"=="--worker" (
+  cd /d "%~2"
+) else (
+  cd /d "%~dp0"
+)
 title Update and Start ST Character WeChat
 set "STCW_ROOT=%CD%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$root=$env:STCW_ROOT; if ($root) { Get-ChildItem -LiteralPath $root -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.bat','.cmd','.ps1','.html' } | Unblock-File -ErrorAction SilentlyContinue }" >nul 2>nul
