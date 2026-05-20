@@ -94,6 +94,22 @@ class ApiThreadStore {
     this.save();
     return this.getThread(normalizedThreadId);
   }
+
+  replaceMessages(threadId, messages = []) {
+    const normalizedThreadId = normalizeText(threadId);
+    if (!normalizedThreadId || !this.state.threads[normalizedThreadId]) {
+      return null;
+    }
+    const normalizedMessages = Array.isArray(messages)
+      ? messages.map(normalizeStoredMessage).filter(Boolean)
+      : [];
+    const current = this.state.threads[normalizedThreadId];
+    current.messages = normalizedMessages.slice(Math.max(0, normalizedMessages.length - this.maxMessages));
+    current.updatedAt = new Date().toISOString();
+    this.state.threads[normalizedThreadId] = current;
+    this.save();
+    return this.getThread(normalizedThreadId);
+  }
 }
 
 function createEmptyState() {
@@ -107,10 +123,30 @@ function normalizeApiRole(value) {
   if (normalized === "model" || normalized === "assistant") {
     return "model";
   }
+  if (normalized === "system") {
+    return "system";
+  }
   if (normalized === "user") {
     return "user";
   }
   return "";
+}
+
+function normalizeStoredMessage(message) {
+  if (!message || typeof message !== "object") {
+    return null;
+  }
+  const role = normalizeApiRole(message.role);
+  const text = normalizeText(message.text);
+  if (!role || !text) {
+    return null;
+  }
+  return {
+    ...message,
+    role,
+    text,
+    createdAt: normalizeText(message.createdAt) || new Date().toISOString(),
+  };
 }
 
 function normalizePositiveInteger(value) {

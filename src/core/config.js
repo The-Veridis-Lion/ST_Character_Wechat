@@ -121,6 +121,11 @@ function readConfig() {
     apiModel: readTextEnv("ST_CHARACTER_WECHAT_API_MODEL") || readTextEnv("OPENAI_MODEL") || readTextEnv("DEEPSEEK_MODEL") || apiDefaults.model,
     apiHistoryLimit: readIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_LIMIT") || 80,
     apiStreamingEnabled: readOptionalBoolEnv("ST_CHARACTER_WECHAT_API_STREAMING_ENABLED") !== false,
+    apiTimeCompactionEnabled: readOptionalBoolEnv("ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED") !== false,
+    apiHistoryRecentDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS", 3),
+    apiHistoryWeeklyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS", 7),
+    apiHistoryMonthlyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS", 30),
+    apiHistorySummaryChars: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
     apiThreadsFile: path.join(stateDir, "api-threads.json"),
     sessionsFile: path.join(stateDir, "sessions.json"),
   };
@@ -270,6 +275,14 @@ function resolvePositiveIntEnv(name, fallback) {
 function resolveNonNegativeNumberEnv(name, fallback) {
   const value = readNumberEnv(name);
   if (!Number.isFinite(value) || value < 0) {
+    return fallback;
+  }
+  return value;
+}
+
+function resolvePositiveNumberEnv(name, fallback) {
+  const value = readNumberEnv(name);
+  if (!Number.isFinite(value) || value <= 0) {
     return fallback;
   }
   return value;

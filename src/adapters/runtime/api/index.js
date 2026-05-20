@@ -5,6 +5,11 @@ const { SessionStore } = require("../codex/session-store");
 const { ApiThreadStore } = require("./thread-store");
 
 const DEFAULT_API_HISTORY_LIMIT = 80;
+const DEFAULT_API_RECENT_DAYS = 3;
+const DEFAULT_API_WEEKLY_COMPACT_AFTER_DAYS = 7;
+const DEFAULT_API_MONTHLY_COMPACT_AFTER_DAYS = 30;
+const DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS = 1800;
+const API_HISTORY_SUMMARY_MARKER = "[ST Character WeChat API history summary]";
 
 function createApiRuntimeAdapter(config, options = {}) {
   const runtimeId = resolveApiRuntimeId(config);
@@ -87,16 +92,11 @@ function createApiRuntimeAdapter(config, options = {}) {
       if (!thread) {
         throw new Error("API runtime thread not found.");
       }
-      const historyLimit = config.apiHistoryLimit || DEFAULT_API_HISTORY_LIMIT;
-      const kept = thread.messages.slice(-Math.max(2, Math.floor(historyLimit / 2)));
-      threadStore.deleteThread(threadId);
-      threadStore.createThread({
-        threadId,
-        workspaceRoot: thread.workspaceRoot,
-        metadata: thread.metadata,
-      });
-      for (const message of kept) {
-        threadStore.appendMessage(threadId, message);
+      const compacted = compactApiThreadByTime({ threadStore, threadId, config, force: true });
+      if (!compacted?.changed) {
+        const historyLimit = config.apiHistoryLimit || DEFAULT_API_HISTORY_LIMIT;
+        const kept = thread.messages.slice(-Math.max(2, Math.floor(historyLimit / 2)));
+        threadStore.replaceMessages(threadId, kept);
       }
       return { threadId, turnId: "" };
     },
@@ -120,6 +120,7 @@ function createApiRuntimeAdapter(config, options = {}) {
         role: "user",
         text: outboundText,
       });
+      compactApiThreadByTime({ threadStore, threadId, config });
 
       setTimeout(() => {
         runApiTurn({
@@ -167,14 +168,14 @@ async function runApiTurn({
           fetchImpl,
           config,
           model,
-          messages: thread?.messages || [],
+          messages: buildApiRequestMessages(thread?.messages || []),
           signal: controller.signal,
         }))
       : await streamApiChatCompletions({
           fetchImpl,
           config,
           model,
-          messages: thread?.messages || [],
+          messages: buildApiRequestMessages(thread?.messages || []),
           signal: controller.signal,
           onDelta(deltaText) {
             emit({
@@ -333,6 +334,248 @@ async function streamApiChatCompletions({ fetchImpl, config, model, messages, si
     }
   }
   return normalizeText(completedText);
+}
+
+function compactApiThreadByTime({ threadStore, threadId, config, now = new Date(), force = false } = {}) {
+  const thread = threadStore.getThread(threadId);
+  if (!thread) {
+    return { changed: false };
+  }
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  if (!messages.length) {
+    return { changed: false };
+  }
+
+  const policy = resolveApiTimeCompactPolicy(config);
+  if (!policy.enabled && !force) {
+    return { changed: false };
+  }
+
+  const nowMs = normalizeDateMs(now) || Date.now();
+  const recentCutoffMs = nowMs - policy.recentDays * 24 * 60 * 60 * 1000;
+  const weeklyCutoffMs = nowMs - policy.weeklyAfterDays * 24 * 60 * 60 * 1000;
+  const monthlyCutoffMs = nowMs - policy.monthlyAfterDays * 24 * 60 * 60 * 1000;
+  const recent = [];
+  const preservedSummaries = [];
+  const dailyGroups = new Map();
+  const weeklyGroups = new Map();
+  const monthlyGroups = new Map();
+  let regroupedSummaryCount = 0;
+
+  for (const message of messages) {
+    if (isApiHistorySummaryMessage(message)) {
+      const createdMs = normalizeDateMs(message.createdAt);
+      const level = normalizeText(message.summaryLevel).toLowerCase();
+      if ((level === "daily" || !level) && createdMs && createdMs < monthlyCutoffMs) {
+        regroupedSummaryCount += 1;
+        addGroupedMessage(monthlyGroups, formatMonthKey(createdMs), message);
+      } else if ((level === "daily" || !level) && createdMs && createdMs < weeklyCutoffMs) {
+        regroupedSummaryCount += 1;
+        addGroupedMessage(weeklyGroups, formatWeekKey(createdMs), message);
+      } else if (level === "weekly" && createdMs && createdMs < monthlyCutoffMs) {
+        regroupedSummaryCount += 1;
+        addGroupedMessage(monthlyGroups, formatMonthKey(createdMs), message);
+      } else {
+        preservedSummaries.push(message);
+      }
+      continue;
+    }
+    const createdMs = normalizeDateMs(message.createdAt);
+    if (!createdMs) {
+      recent.push(message);
+      continue;
+    }
+    if (!force && createdMs >= recentCutoffMs) {
+      recent.push(message);
+    } else if (createdMs >= weeklyCutoffMs) {
+      addGroupedMessage(dailyGroups, formatDateKey(createdMs), message);
+    } else if (createdMs >= monthlyCutoffMs) {
+      addGroupedMessage(weeklyGroups, formatWeekKey(createdMs), message);
+    } else {
+      addGroupedMessage(monthlyGroups, formatMonthKey(createdMs), message);
+    }
+  }
+
+  const summaryMessages = []
+    .concat(preservedSummaries.map(cloneMessage))
+    .concat(buildSummaryMessagesFromGroups(monthlyGroups, "长期 API 历史摘要", "monthly", policy.summaryChars))
+    .concat(buildSummaryMessagesFromGroups(weeklyGroups, "每周 API 历史摘要", "weekly", policy.summaryChars))
+    .concat(buildSummaryMessagesFromGroups(dailyGroups, "每日 API 历史摘要", "daily", policy.summaryChars));
+  const compactedMessages = summaryMessages.concat(recent.map(cloneMessage));
+  const changed = force
+    ? summaryMessages.length > preservedSummaries.length || regroupedSummaryCount > 0
+    : summaryMessages.length > preservedSummaries.length || regroupedSummaryCount > 0 || compactedMessages.length !== messages.length;
+  if (!changed) {
+    return { changed: false };
+  }
+  threadStore.replaceMessages(threadId, compactedMessages);
+  return {
+    changed: true,
+    summaryCount: summaryMessages.length,
+    retainedCount: recent.length,
+  };
+}
+
+function buildApiRequestMessages(messages = []) {
+  const latestUserIndex = findLatestApiUserMessageIndex(messages);
+  return messages.map((message, index) => ({
+    ...message,
+    role: message.role === "system" ? "user" : message.role,
+    text: isApiHistorySummaryMessage(message) || index === latestUserIndex
+      ? message.text
+      : extractApiConversationText(message.text) || message.text,
+  }));
+}
+
+function findLatestApiUserMessageIndex(messages = []) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!isApiHistorySummaryMessage(message) && message?.role === "user") {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function resolveApiTimeCompactPolicy(config = {}) {
+  const recentDays = positiveNumber(config.apiHistoryRecentDays, DEFAULT_API_RECENT_DAYS);
+  const weeklyAfterDays = Math.max(
+    recentDays + 1,
+    positiveNumber(config.apiHistoryWeeklyCompactAfterDays, DEFAULT_API_WEEKLY_COMPACT_AFTER_DAYS),
+  );
+  const monthlyAfterDays = Math.max(
+    weeklyAfterDays + 1,
+    positiveNumber(config.apiHistoryMonthlyCompactAfterDays, DEFAULT_API_MONTHLY_COMPACT_AFTER_DAYS),
+  );
+  return {
+    enabled: config.apiTimeCompactionEnabled !== false,
+    recentDays,
+    weeklyAfterDays,
+    monthlyAfterDays,
+    summaryChars: positiveInteger(config.apiHistorySummaryChars, DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS),
+  };
+}
+
+function buildSummaryMessagesFromGroups(groups, label, summaryLevel, summaryChars) {
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, messages]) => {
+      const body = summarizeApiHistoryMessages(messages, summaryChars);
+      if (!body) {
+        return null;
+      }
+      return {
+        role: "system",
+        text: `${API_HISTORY_SUMMARY_MARKER}\n${label} ${key}\n${body}`,
+        createdAt: resolveGroupCreatedAt(messages),
+        compacted: true,
+        summaryLevel,
+        periodKey: key,
+      };
+    })
+    .filter(Boolean);
+}
+
+function summarizeApiHistoryMessages(messages = [], maxChars = DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS) {
+  const lines = [];
+  for (const message of messages) {
+    const text = isApiHistorySummaryMessage(message)
+      ? extractApiHistorySummaryBody(message.text)
+      : extractApiConversationText(message.text);
+    if (!text) {
+      continue;
+    }
+    const prefix = message.role === "model" ? "角色" : message.role === "system" ? "历史" : "用户";
+    lines.push(`${prefix}: ${compactWhitespace(text)}`);
+  }
+  return truncateByChars(lines.join("\n"), maxChars);
+}
+
+function extractApiConversationText(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized) {
+    return "";
+  }
+  const userMessageMatch = normalized.match(/(?:^|\n)## User Message\s*\n([\s\S]*?)\s*$/u);
+  if (userMessageMatch) {
+    return userMessageMatch[1].trim();
+  }
+  return normalized;
+}
+
+function extractApiHistorySummaryBody(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized.startsWith(API_HISTORY_SUMMARY_MARKER)) {
+    return normalized;
+  }
+  return normalized
+    .split("\n")
+    .slice(2)
+    .join("\n")
+    .trim();
+}
+
+function addGroupedMessage(groups, key, message) {
+  if (!groups.has(key)) {
+    groups.set(key, []);
+  }
+  groups.get(key).push(message);
+}
+
+function isApiHistorySummaryMessage(message) {
+  return Boolean(message?.compacted) || String(message?.text || "").startsWith(API_HISTORY_SUMMARY_MARKER);
+}
+
+function resolveGroupCreatedAt(messages = []) {
+  const first = messages.find((message) => normalizeText(message?.createdAt));
+  return first?.createdAt || new Date().toISOString();
+}
+
+function cloneMessage(message) {
+  return message && typeof message === "object" ? { ...message } : message;
+}
+
+function normalizeDateMs(value) {
+  const ms = value instanceof Date ? value.getTime() : Date.parse(String(value || ""));
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function formatDateKey(ms) {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function formatWeekKey(ms) {
+  const date = new Date(ms);
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() - day + 1);
+  return `${date.toISOString().slice(0, 10)} week`;
+}
+
+function formatMonthKey(ms) {
+  return new Date(ms).toISOString().slice(0, 7);
+}
+
+function compactWhitespace(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function truncateByChars(value, maxChars) {
+  const text = String(value || "").trim();
+  const limit = positiveInteger(maxChars, DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS);
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(1, limit - 12)).trim()}...`;
+}
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function buildApiChatCompletionsUrl(baseUrl) {

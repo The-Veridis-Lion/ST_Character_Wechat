@@ -135,6 +135,84 @@ test("API runtime emits streaming delta events from SSE responses", async () => 
   assert.ok(events.some((event) => event.type === "runtime.reply.completed" && event.payload.text === "你好。"));
 });
 
+test("API runtime compacts older local history into plain text summaries", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-compact-test-"));
+  const calls = [];
+  let fetchCount = 0;
+  const runtimeConfig = {
+    runtime: "api",
+    sessionsFile: path.join(dir, "sessions.json"),
+    apiThreadsFile: path.join(dir, "api-threads.json"),
+    apiBaseUrl: "https://api.example.test/v1",
+    apiKey: "test-key",
+    apiModel: "chat-model",
+    apiHistoryLimit: 40,
+    apiStreamingEnabled: false,
+    apiTimeCompactionEnabled: true,
+    apiHistoryRecentDays: 3,
+    apiHistoryWeeklyCompactAfterDays: 7,
+    apiHistoryMonthlyCompactAfterDays: 30,
+    apiHistorySummaryChars: 500,
+  };
+  const runtimeOptions = {
+    fetch: async (url, init) => {
+      fetchCount += 1;
+      calls.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        async text() {
+          return JSON.stringify({
+            choices: [{
+              message: { content: `reply-${fetchCount}` },
+            }],
+          });
+        },
+      };
+    },
+  };
+
+  const events = [];
+  let adapter = createApiRuntimeAdapter(runtimeConfig, runtimeOptions);
+  adapter.onEvent((event) => events.push(event));
+  const threadsFile = path.join(dir, "api-threads.json");
+  await adapter.sendTextTurn({
+    bindingKey: "binding-compact",
+    workspaceRoot: "/workspace",
+    text: "CHARACTER WECHAT CHAT MODE\n\n## Description\nold prompt should not repeat\n\n## User Message\nold hello",
+    metadata: { characterChat: true },
+  });
+  await waitFor(() => events.filter((event) => event.type === "runtime.turn.completed").length >= 1);
+  markStoredApiMessagesOlderThan(threadsFile, 20);
+
+  adapter = createApiRuntimeAdapter(runtimeConfig, runtimeOptions);
+  adapter.onEvent((event) => events.push(event));
+  await adapter.sendTextTurn({
+    bindingKey: "binding-compact",
+    workspaceRoot: "/workspace",
+    text: "CHARACTER WECHAT CHAT MODE\n\n## Description\nfresh prompt stays current\n\n## User Message\nfresh hello",
+    metadata: { characterChat: true },
+  });
+  await waitFor(() => events.filter((event) => event.type === "runtime.turn.completed").length >= 2);
+
+  const latestMessages = calls.at(-1).messages;
+  assert.ok(latestMessages.some((message) => /每周 API 历史摘要/u.test(message.content)));
+  assert.ok(latestMessages.some((message) => /用户: old hello/u.test(message.content)));
+  assert.ok(latestMessages.some((message) => /角色: reply-1/u.test(message.content)));
+  assert.ok(latestMessages.some((message) => message.content.includes("fresh prompt stays current")));
+  assert.ok(!latestMessages.some((message) => message.content.includes("old prompt should not repeat")));
+});
+
+function markStoredApiMessagesOlderThan(filePath, days) {
+  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  const createdAt = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  for (const thread of Object.values(parsed.threads || {})) {
+    for (const message of thread.messages || []) {
+      message.createdAt = createdAt;
+    }
+  }
+  fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2));
+}
+
 function createSseResponse(payloads) {
   const encoder = new TextEncoder();
   const body = new ReadableStream({
