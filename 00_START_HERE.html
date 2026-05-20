@@ -705,8 +705,8 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
               <option value="America/Los_Angeles">UTC-08:00/-07:00 北美太平洋时间</option>
               <option value="America/Denver">UTC-07:00/-06:00 北美山地时间</option>
               <option value="America/Chicago">UTC-06:00/-05:00 北美中部时间</option>
-              <option value="America/New_York">UTC-05:00/-04:00 北美东部时间</option>
-              <option value="America/Halifax">UTC-04:00/-03:00 大西洋时间</option>
+              <option value="America/New_York">UTC-05:00/-04:00 北美东部时间（纽约/匹兹堡）</option>
+              <option value="America/Halifax">UTC-04:00/-03:00 大西洋时间（加拿大哈利法克斯）</option>
               <option value="America/Sao_Paulo">UTC-03:00 巴西东部</option>
               <option value="Etc/GMT+2">UTC-02:00 大西洋中部</option>
               <option value="Atlantic/Azores">UTC-01:00/+00:00 亚速尔</option>
@@ -730,7 +730,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
             </select>
           </label>
           <label>当前位置
-            <input id="localLocation" placeholder="例如 Shanghai, China">
+            <input id="localLocation" placeholder="例如 Pittsburgh, United States">
           </label>
         </div>
       </div>
@@ -1210,6 +1210,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     let reportTemplateState = loadReportTemplateState();
     let cardDirectoryHandle = null;
     let isHydratingEnvForm = false;
+    const dirtyFieldIds = new Set();
 
     const formIds = [
       "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
@@ -1333,19 +1334,31 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     function bindRuntimeForm() {
       const runtimeSelect = document.getElementById("runtimeSelect");
       runtimeSelect.addEventListener("change", () => {
+        markFormFieldDirty("runtimeSelect");
         applyRuntimeDefaults(runtimeSelect.value);
         renderEnv();
       });
       for (const id of formIds) {
         const field = document.getElementById(id);
         if (field) {
-          field.addEventListener("input", renderEnv);
-          field.addEventListener("change", renderEnv);
+          field.addEventListener("input", () => {
+            markFormFieldDirty(id);
+            renderEnv();
+          });
+          field.addEventListener("change", () => {
+            markFormFieldDirty(id);
+            renderEnv();
+          });
         }
       }
       document.getElementById("memoryRetrievalEnabled").addEventListener("change", applyMemoryRetrievalVisibility);
       document.getElementById("memoryRetrievalRerankEnabled").addEventListener("change", applyMemoryRetrievalVisibility);
       applyMemoryRetrievalVisibility();
+    }
+
+    function markFormFieldDirty(id) {
+      if (isHydratingEnvForm || !id) return;
+      dirtyFieldIds.add(id);
     }
 
     function applyRuntimeDefaults(runtime, { force = false } = {}) {
@@ -1752,6 +1765,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       } finally {
         isHydratingEnvForm = false;
       }
+      dirtyFieldIds.clear();
       renderEnv();
       return true;
     }
@@ -1993,6 +2007,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
           ? modelSettingKeys
           : [];
       for (const key of keysToPreserve) {
+        if (isGeneratedEnvKeyDirty(key)) continue;
         if (Object.prototype.hasOwnProperty.call(existing, key)) {
           generated[key] = existing[key];
         }
@@ -2079,6 +2094,18 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       for (const key of missing) output.push(formatEnvLine(key, generated[key]));
       while (output.length && !output[output.length - 1].trim()) output.pop();
       return `${output.join("\n")}\n`;
+    }
+
+    function isGeneratedEnvKeyDirty(key) {
+      const fieldId = {
+        ...envFieldMap,
+        ST_CHARACTER_WECHAT_RUNTIME: "runtimeSelect",
+        ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE: "localTimeZone",
+        ST_CHARACTER_WECHAT_REPORT_TIME_ZONE: "localTimeZone",
+        ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME: "dailyWeatherReminderHour",
+        ST_CHARACTER_WECHAT_API_MODEL: "apiModel",
+      }[key];
+      return Boolean(fieldId && dirtyFieldIds.has(fieldId));
     }
 
     function parseEnvMap(text) {
