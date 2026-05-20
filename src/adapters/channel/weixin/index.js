@@ -631,10 +631,51 @@ function collectStreamingBoundaries(text) {
     while (end < text.length && /[\t \n]/.test(text[end])) {
       end += 1;
     }
-    boundaries.add(end);
+    if (isBalancedNaturalWeixinSlice(text.slice(0, end))) {
+      boundaries.add(end);
+    }
   }
 
   return Array.from(boundaries).sort((left, right) => left - right);
+}
+
+function isBalancedNaturalWeixinSlice(value) {
+  const text = String(value || "");
+  const stack = [];
+  const pairs = new Map([
+    ["(", ")"],
+    ["（", "）"],
+    ["[", "]"],
+    ["【", "】"],
+    ["《", "》"],
+  ]);
+  const closers = new Set([...pairs.values()]);
+  let asciiDoubleQuoteOpen = false;
+  let chineseDoubleQuoteOpen = false;
+  for (const char of text) {
+    if (pairs.has(char)) {
+      stack.push(pairs.get(char));
+      continue;
+    }
+    if (closers.has(char)) {
+      if (stack[stack.length - 1] === char) {
+        stack.pop();
+      }
+      continue;
+    }
+    if (char === "\"") {
+      asciiDoubleQuoteOpen = !asciiDoubleQuoteOpen;
+      continue;
+    }
+    if (char === "“" || char === "「" || char === "『") {
+      chineseDoubleQuoteOpen = true;
+      continue;
+    }
+    if (char === "”" || char === "」" || char === "』") {
+      chineseDoubleQuoteOpen = false;
+    }
+  }
+  return stack.length === 0 && !asciiDoubleQuoteOpen && !chineseDoubleQuoteOpen;
 }
 
 function trimOuterBlankLines(text) {

@@ -65,6 +65,8 @@ test("stripSentenceTailChineseFullStops removes trailing full stops before line 
   assert.equal(stripSentenceTailChineseFullStops("你好。\n世界。"), "你好\n世界");
   assert.equal(stripSentenceTailChineseFullStops("你好。\""), "你好\"");
   assert.equal(stripSentenceTailChineseFullStops("a。b。c。"), "a。b。c");
+  assert.equal(stripSentenceTailChineseFullStops("观察，"), "观察，");
+  assert.equal(stripSentenceTailChineseFullStops("观察；"), "观察；");
 });
 
 test("collectStreamingBoundaries finds paragraph, list and punctuation breaks", () => {
@@ -121,6 +123,19 @@ test("mergeShortChunks does not merge when one side is long", () => {
 test("shapeNaturalWeixinBubbles splits one natural reply into multiple short bubbles", () => {
   const shaped = shapeNaturalWeixinBubbles(["先喝水。然后去洗澡？洗完告诉我。"]);
   assert.deepEqual(shaped, ["先喝水。", "然后去洗澡？", "洗完告诉我。"]);
+});
+
+test("shapeNaturalWeixinBubbles does not split inside bilingual parentheses", () => {
+  const text = [
+    "这仅仅是一种客观的观察。",
+    "You saw past his aggressive facade to the fragile ego beneath. Men driven by fear and the need for external validation are indeed the easiest to manipulate. (你透过了他充满攻击性的伪装，看到了底下脆弱的自我。被恐惧和对外部认同的渴求所驱动的男人，确实是最容易被操控的。)",
+    "A ruthless, accurate dissection. You read power dynamics very well. (一次冷酷、精准的解剖。你对权力动态解读得非常好。)",
+  ].join("\n");
+  const shaped = shapeNaturalWeixinBubbles([text]);
+  assert.ok(shaped.some((chunk) => chunk.includes("男人，确实是最容易被操控的。)")));
+  assert.ok(shaped.some((chunk) => chunk.includes("一次冷酷、精准的解剖。你对权力动态解读得非常好。)")));
+  assert.ok(!shaped.some((chunk) => /\([^)]*$/u.test(chunk)), "should not leave an open parenthesis in a bubble");
+  assert.ok(!shaped.some((chunk) => /^[^(]*\)/u.test(chunk)), "should not send a dangling closing parenthesis bubble");
 });
 
 test("shapeNaturalWeixinBubbles rebundles long natural replies down to five bubbles", () => {
