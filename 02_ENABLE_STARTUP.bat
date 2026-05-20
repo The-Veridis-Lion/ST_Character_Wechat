@@ -18,6 +18,32 @@ if not exist "%STCW_TARGET%" (
   exit /b 1
 )
 
+where node >nul 2>nul
+if errorlevel 1 (
+  echo Node.js was not found. Please install Node.js 22 or newer first.
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist ".env" (
+  echo .env was not found. Configure the project first with 00_START_HERE.html or the install prompt.
+  echo.
+  pause
+  exit /b 1
+)
+
+if exist "scripts\prepare-windows-start.js" (
+  node "scripts\prepare-windows-start.js"
+  if errorlevel 1 (
+    echo.
+    echo Windows startup preparation failed. Startup shortcut was not created.
+    echo.
+    pause
+    exit /b 1
+  )
+)
+
 echo This will create a Windows startup shortcut:
 echo %STCW_SHORTCUT%
 echo.

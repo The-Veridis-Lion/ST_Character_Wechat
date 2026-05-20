@@ -5,7 +5,7 @@ function readConfig() {
   const argv = process.argv.slice(2);
   const mode = argv[0] || "";
   const stateDir = process.env.ST_CHARACTER_WECHAT_STATE_DIR || path.join(os.homedir(), ".st-character-wechat");
-  const runtime = (readTextEnv("ST_CHARACTER_WECHAT_RUNTIME") || "codex").toLowerCase();
+  const runtime = resolveRuntime();
   const workspaceRoot = readTextEnv("ST_CHARACTER_WECHAT_WORKSPACE_ROOT") || process.cwd();
   const apiDefaults = resolveApiRuntimeDefaults(runtime);
   const localTimeZone = readTextEnv("ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE")
@@ -149,6 +149,28 @@ function readListEnv(name) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function resolveRuntime() {
+  const explicit = readTextEnv("ST_CHARACTER_WECHAT_RUNTIME");
+  if (explicit) {
+    return explicit.toLowerCase();
+  }
+  return hasApiRuntimeConfig() ? "api" : "codex";
+}
+
+function hasApiRuntimeConfig() {
+  return Boolean(
+    readTextEnv("ST_CHARACTER_WECHAT_API_BASE_URL")
+    || readTextEnv("ST_CHARACTER_WECHAT_API_KEY")
+    || readTextEnv("ST_CHARACTER_WECHAT_API_MODEL")
+    || readTextEnv("OPENAI_BASE_URL")
+    || readTextEnv("OPENAI_API_KEY")
+    || readTextEnv("OPENAI_MODEL")
+    || readTextEnv("DEEPSEEK_BASE_URL")
+    || readTextEnv("DEEPSEEK_API_KEY")
+    || readTextEnv("DEEPSEEK_MODEL")
+  );
 }
 
 function readTextEnv(name) {

@@ -80,11 +80,11 @@ if errorlevel 2 (
 )
 echo.
 
-echo Step 1/4: stopping any running ST Character WeChat process.
+echo Step 1/5: stopping any running ST Character WeChat process.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$targets=Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and ($_.CommandLine -like '*st-character-wechat.js*start*') }; foreach ($p in $targets) { Write-Host ('Stopping PID ' + $p.ProcessId + ' ' + $p.Name); Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }"
 echo.
 
-echo Step 2/4: updating program files from GitHub.
+echo Step 2/5: updating program files from GitHub.
 if not exist ".git" (
   echo This looks like a GitHub ZIP download. It will be converted into a Git checkout
   echo so future updates can run from this same folder.
@@ -111,7 +111,7 @@ git branch -M %STCW_BRANCH%
 git branch --set-upstream-to=origin/%STCW_BRANCH% %STCW_BRANCH% >nul 2>nul
 echo.
 
-echo Step 3/4: installing or refreshing dependencies.
+echo Step 3/5: installing or refreshing dependencies.
 npm install
 if errorlevel 1 (
   echo.
@@ -122,7 +122,20 @@ if errorlevel 1 (
 )
 echo.
 
-echo Step 4/4: running project check.
+echo Step 4/5: preparing Windows runtime command.
+if exist "scripts\prepare-windows-start.js" (
+  node "scripts\prepare-windows-start.js"
+  if errorlevel 1 (
+    echo.
+    echo Windows startup preparation failed. The app was not started.
+    echo.
+    pause
+    exit /b 1
+  )
+)
+echo.
+
+echo Step 5/5: running project check.
 npm run check
 if errorlevel 1 (
   echo.
@@ -133,7 +146,16 @@ if errorlevel 1 (
 )
 echo.
 
-call "%~dp001_START_WECHAT.bat"
+if not exist "%STCW_ROOT%\01_START_WECHAT.bat" (
+  echo 01_START_WECHAT.bat was not found after update.
+  echo Expected:
+  echo %STCW_ROOT%\01_START_WECHAT.bat
+  echo.
+  pause
+  exit /b 1
+)
+
+call "%STCW_ROOT%\01_START_WECHAT.bat"
 exit /b %ERRORLEVEL%
 
 :update_failed

@@ -39,6 +39,17 @@ if not exist ".env" (
   exit /b 1
 )
 
+if exist "scripts\prepare-windows-start.js" (
+  node "scripts\prepare-windows-start.js"
+  if errorlevel 1 (
+    echo.
+    echo Windows startup preparation failed. The app was not started.
+    echo.
+    pause
+    exit /b 1
+  )
+)
+
 npm run start
 set "EXIT_CODE=%ERRORLEVEL%"
 
