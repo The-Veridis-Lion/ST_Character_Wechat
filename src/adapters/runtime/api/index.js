@@ -49,6 +49,10 @@ function createApiRuntimeAdapter(config, options = {}) {
     getSessionStore() {
       return sessionStore;
     },
+    getContextStats({ threadId } = {}) {
+      const stats = threadStore.getThreadStats(threadId);
+      return stats ? { kind: "api_history", ...stats } : null;
+    },
     async initialize() {
       if (typeof fetchImpl !== "function") {
         throw new Error("API runtime requires global fetch. Use Node.js 22+.");

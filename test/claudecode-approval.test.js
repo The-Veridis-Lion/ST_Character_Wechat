@@ -1340,3 +1340,67 @@ test("handleStatusCommand shows codex context as unavailable when no context dat
 
   assert.match(sent[0], /📦 context: unavailable/);
 });
+
+test("handleStatusCommand shows API local history character stats", async () => {
+  const sent = [];
+  const appLike = {
+    config: {},
+    ...activeCharacterContext(),
+    resolveWorkspaceRoot() {
+      return "/workspace";
+    },
+    runtimeAdapter: {
+      describe() {
+        return { id: "api" };
+      },
+      getContextStats({ threadId }) {
+        assert.equal(threadId, "thread-api");
+        return {
+          kind: "api_history",
+          totalChars: 12345,
+          messageCount: 40,
+          summaryMessages: 2,
+        };
+      },
+      getSessionStore() {
+        return {
+          buildBindingKey() {
+            return "binding-api";
+          },
+          getThreadIdForWorkspace() {
+            return "thread-api";
+          },
+          getPendingThreadIdForWorkspace() {
+            return "";
+          },
+          getRuntimeParamsForWorkspace() {
+            return { model: "remote-model" };
+          },
+        };
+      },
+    },
+    threadStateStore: {
+      getThreadState() {
+        return { status: "idle" };
+      },
+      getLatestContext() {
+        return null;
+      },
+    },
+    channelAdapter: {
+      async sendText(payload) {
+        sent.push(payload.text);
+      },
+    },
+  };
+
+  await CharacterWechatApp.prototype.handleStatusCommand.call(appLike, {
+    workspaceId: "default",
+    accountId: "account-1",
+    senderId: "user-1",
+    contextToken: "ctx-1",
+  });
+
+  assert.match(sent[0], /📦 context: API local history 12\.3k chars \/ 40 messages \/ 2 summaries/);
+  assert.doesNotMatch(sent[0], /left/);
+});

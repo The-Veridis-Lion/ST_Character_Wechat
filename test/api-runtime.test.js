@@ -160,6 +160,33 @@ test("API thread store cleans hidden reasoning from existing model history on lo
   assert.ok(!persisted.includes("MODEL_SECRET_TWO"));
 });
 
+test("API thread store reports local history character stats", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-stats-test-"));
+  const filePath = path.join(dir, "api-threads.json");
+  fs.writeFileSync(filePath, JSON.stringify({
+    threads: {
+      "thread-1": {
+        threadId: "thread-1",
+        messages: [
+          { role: "user", text: "你好" },
+          { role: "model", text: "hello" },
+          { role: "system", text: "[ST Character WeChat API history summary]\n摘要", compacted: true },
+        ],
+      },
+    },
+  }, null, 2));
+
+  const store = new ApiThreadStore({ filePath, maxMessages: 10 });
+  const stats = store.getThreadStats("thread-1");
+
+  assert.equal(stats.messageCount, 3);
+  assert.equal(stats.userChars, 2);
+  assert.equal(stats.assistantChars, 5);
+  assert.equal(stats.summaryMessages, 1);
+  assert.equal(stats.summaryChars, 44);
+  assert.equal(stats.totalChars, 51);
+});
+
 test("API runtime emits streaming delta events from SSE responses", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-stream-test-"));
   const calls = [];

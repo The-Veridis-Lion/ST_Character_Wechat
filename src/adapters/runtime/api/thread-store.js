@@ -70,6 +70,43 @@ class ApiThreadStore {
     };
   }
 
+  getThreadStats(threadId) {
+    const thread = this.getThread(threadId);
+    if (!thread) {
+      return null;
+    }
+    const stats = {
+      messageCount: 0,
+      totalChars: 0,
+      userChars: 0,
+      assistantChars: 0,
+      systemChars: 0,
+      summaryChars: 0,
+      summaryMessages: 0,
+    };
+    for (const message of thread.messages || []) {
+      const text = normalizeText(message?.text);
+      if (!text) {
+        continue;
+      }
+      const charCount = countCharacters(text);
+      stats.messageCount += 1;
+      stats.totalChars += charCount;
+      if (isStoredApiHistorySummary(message)) {
+        stats.summaryMessages += 1;
+        stats.summaryChars += charCount;
+      }
+      if (message.role === "user") {
+        stats.userChars += charCount;
+      } else if (message.role === "model") {
+        stats.assistantChars += charCount;
+      } else if (message.role === "system") {
+        stats.systemChars += charCount;
+      }
+    }
+    return stats;
+  }
+
   deleteThread(threadId) {
     const normalizedThreadId = normalizeText(threadId);
     if (!normalizedThreadId || !this.state.threads[normalizedThreadId]) {
@@ -190,6 +227,14 @@ function normalizeLoadedState(state) {
 
 function normalizeAssistantHistoryText(value) {
   return normalizeText(stripInternalReplyBlocks(normalizeText(value)));
+}
+
+function isStoredApiHistorySummary(message) {
+  return Boolean(message?.compacted) || normalizeText(message?.text).startsWith("[ST Character WeChat API history summary]");
+}
+
+function countCharacters(value) {
+  return Array.from(String(value || "")).length;
 }
 
 function normalizePositiveInteger(value) {

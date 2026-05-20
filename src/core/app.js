@@ -2160,9 +2160,13 @@ class CharacterWechatApp {
     if (pendingThreadId) {
       lines.splice(2, 0, `🔁 target: ${pendingThreadId}`);
     }
+    const contextStats = typeof this.runtimeAdapter.getContextStats === "function"
+      ? this.runtimeAdapter.getContextStats({ bindingKey, workspaceRoot, threadId })
+      : null;
     lines.push(formatContextStatusLine({
       runtimeName,
       context,
+      contextStats,
       claudeContextWindow: this.config.claudeContextWindow,
       claudeMaxOutputTokens: this.config.claudeMaxOutputTokens,
     }));
@@ -3683,7 +3687,10 @@ function resolveContextUsageState({ runtimeName, context, claudeContextWindow, c
   };
 }
 
-function formatContextStatusLine({ runtimeName, context, claudeContextWindow, claudeMaxOutputTokens }) {
+function formatContextStatusLine({ runtimeName, context, contextStats, claudeContextWindow, claudeMaxOutputTokens }) {
+  if (contextStats?.kind === "api_history") {
+    return formatApiHistoryContextStatusLine(contextStats);
+  }
   const usage = resolveContextUsageState({
     runtimeName,
     context,
@@ -3701,6 +3708,20 @@ function formatContextStatusLine({ runtimeName, context, claudeContextWindow, cl
     return `📦 context: approx ${summary}`;
   }
   return `📦 context: ${summary}`;
+}
+
+function formatApiHistoryContextStatusLine(stats = {}) {
+  const totalChars = Math.max(0, Number(stats.totalChars) || 0);
+  const messageCount = Math.max(0, Number(stats.messageCount) || 0);
+  const parts = [
+    `📦 context: API local history ${formatCompactNumber(totalChars)} chars`,
+    `${formatCompactNumber(messageCount)} messages`,
+  ];
+  const summaryMessages = Math.max(0, Number(stats.summaryMessages) || 0);
+  if (summaryMessages > 0) {
+    parts.push(`${formatCompactNumber(summaryMessages)} summaries`);
+  }
+  return parts.join(" / ");
 }
 
 function formatContextUsage(currentTokens, contextWindow) {
