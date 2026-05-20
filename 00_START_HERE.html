@@ -956,9 +956,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         <p class="status section-note">本地设置、聊天模型和记忆检索模型会一次写入同一个项目根目录 <code>.env</code>。通过 <code>npm run manual</code> 打开本页时会直接写入，不会生成 <code>env.env</code>；如果直接双击 HTML，浏览器会要求选择项目根目录。</p>
         <textarea id="envOutput" readonly spellcheck="false" placeholder="确认本地设置和模型 / API 后，这里会生成最终 .env 内容。"></textarea>
         <div class="actions">
+          <button id="loadEnvButton" class="button blue">读取现有 .env</button>
           <button class="button primary" data-copy-target="envOutput">复制 .env</button>
           <button class="button save-env-button">保存本地 .env</button>
         </div>
+        <input id="envFileInput" class="visually-hidden" type="file" accept=".env,text/plain">
         <p id="envSaveStatus" class="status" data-status-id="envSaveStatus" aria-live="polite"></p>
       </div>
     </section>
@@ -1174,6 +1176,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     const currentFileProjectRoot = inferCurrentFileProjectRoot();
     let reportTemplateState = loadReportTemplateState();
     let cardDirectoryHandle = null;
+    let isHydratingEnvForm = false;
 
     const formIds = [
       "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
@@ -1187,6 +1190,43 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
       "memoryRetrievalApiKey", "memoryEmbeddingModel", "memoryRerankModel",
     ];
+
+    const envFieldMap = {
+      ST_CHARACTER_WECHAT_ALLOWED_USER_IDS: "allowedUserIds",
+      ST_CHARACTER_WECHAT_USER_NAME: "userName",
+      ST_CHARACTER_WECHAT_USER_GENDER: "userGender",
+      ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE: "localTimeZone",
+      ST_CHARACTER_WECHAT_LOCAL_LOCATION: "localLocation",
+      ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_ENABLED: "dailyWeatherReminderEnabled",
+      ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR: "dailyWeatherReminderHour",
+      ST_CHARACTER_WECHAT_INBOUND_BATCH_WINDOW_SECONDS: "inboundBatchWindowSeconds",
+      ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES: "inboundBatchMaxMessages",
+      ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS: "typingMinDelaySeconds",
+      ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS: "typingMaxDelaySeconds",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED: "proactiveChatEnabled",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME: "proactiveChatStartTime",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME: "proactiveChatEndTime",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MIN_DELAY_MINUTES: "proactiveChatMinDelayMinutes",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_MAX_DELAY_MINUTES: "proactiveChatMaxDelayMinutes",
+      ST_CHARACTER_WECHAT_PROACTIVE_CHAT_PENDING_LIMIT: "proactiveChatPendingLimit",
+      ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_ENABLED: "autoDailyReportEnabled",
+      ST_CHARACTER_WECHAT_AUTO_DAILY_REPORT_TIME: "autoDailyReportTime",
+      ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_ENABLED: "autoWeeklyReportEnabled",
+      ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_WEEKDAY: "autoWeeklyReportWeekday",
+      ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME: "autoWeeklyReportTime",
+      ST_CHARACTER_WECHAT_API_BASE_URL: "apiBaseUrl",
+      ST_CHARACTER_WECHAT_API_KEY: "apiKey",
+      ST_CHARACTER_WECHAT_API_STREAMING_ENABLED: "apiStreamingEnabled",
+      ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED: "apiTimeCompactionEnabled",
+      ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS: "apiHistoryRecentDays",
+      ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS: "apiHistoryWeeklyCompactAfterDays",
+      ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS: "apiHistoryMonthlyCompactAfterDays",
+      ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS: "apiHistorySummaryChars",
+      ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED: "memoryRetrievalEnabled",
+      ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED: "memoryRetrievalRerankEnabled",
+      ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL: "memoryRetrievalBaseUrl",
+      ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_API_KEY: "memoryRetrievalApiKey",
+    };
 
     const setupState = {
       fileName: "",
@@ -1212,6 +1252,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     void renderReportTemplates();
     applyRuntimeDefaults("codex", { force: true });
     renderEnv();
+    void loadExistingEnvIntoForm();
 
     function bindTabs() {
       const buttons = Array.from(document.querySelectorAll(".tab-button"));
@@ -1242,6 +1283,14 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       }
       document.getElementById("fetchApiModelsButton").addEventListener("click", fetchApiModels);
       document.getElementById("fetchMemoryModelsButton").addEventListener("click", fetchMemoryModels);
+      document.getElementById("loadEnvButton").addEventListener("click", () => {
+        if (/^https?:$/i.test(location.protocol)) {
+          void loadExistingEnvIntoForm({ userInitiated: true });
+          return;
+        }
+        document.getElementById("envFileInput").click();
+      });
+      document.getElementById("envFileInput").addEventListener("change", loadPickedEnvFile);
     }
 
     function bindRuntimeForm() {
@@ -1290,7 +1339,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       if (!enabled) {
         setStatus("memoryModelFetchStatus", "");
       }
-      renderEnv();
+      if (!isHydratingEnvForm) renderEnv();
     }
 
     function renderEnv() {
@@ -1569,6 +1618,137 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       }
       urls.push(withCurrentProjectRootQuery(manualHelperEnvUrl));
       return Array.from(new Set(urls));
+    }
+
+    async function loadExistingEnvIntoForm({ userInitiated = false } = {}) {
+      for (const url of manualHelperEnvUrls()) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) continue;
+          const payload = await response.json();
+          if (!payload || payload.ok === false) continue;
+          const content = String(payload.content || "");
+          if (!content.trim()) {
+            if (userInitiated) setStatus("envSaveStatus", "项目根目录还没有 .env。", "warning");
+            return false;
+          }
+          const loaded = applyEnvTextToForm(content);
+          if (loaded && userInitiated) {
+            setStatus("envSaveStatus", `已读取并回填：${payload.path || ".env"}`, "success");
+          } else if (loaded) {
+            setStatus("envSaveStatus", `已自动读取现有 .env：${payload.path || ".env"}`, "success");
+          }
+          return loaded;
+        } catch {
+        }
+      }
+      if (userInitiated) {
+        setStatus("envSaveStatus", "没连上本地 helper。直接双击 HTML 时，请选择项目根目录里的 .env 文件。", "warning");
+      }
+      return false;
+    }
+
+    async function loadPickedEnvFile(event) {
+      const input = event.currentTarget;
+      const file = input?.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        if (applyEnvTextToForm(text)) {
+          setStatus("envSaveStatus", `已从 ${file.name} 回填表单。`, "success");
+        } else {
+          setStatus("envSaveStatus", "这个文件里没有识别到可回填的 .env 配置。", "warning");
+        }
+      } catch (error) {
+        setStatus("envSaveStatus", `读取失败：${error && error.message ? error.message : String(error)}`, "warning");
+      } finally {
+        input.value = "";
+      }
+    }
+
+    function applyEnvTextToForm(text) {
+      const env = parseEnvMap(text);
+      if (!Object.keys(env).length) {
+        return false;
+      }
+      isHydratingEnvForm = true;
+      try {
+        const runtime = normalizeRuntimeForForm(env.ST_CHARACTER_WECHAT_RUNTIME, env);
+        setFormFieldValue("runtimeSelect", runtime);
+        applyRuntimeDefaults(runtime);
+
+        for (const [envKey, fieldId] of Object.entries(envFieldMap)) {
+          if (!Object.prototype.hasOwnProperty.call(env, envKey)) continue;
+          setFormFieldValue(fieldId, normalizeEnvValueForField(fieldId, env[envKey]));
+        }
+
+        if (!env.ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE && env.ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE) {
+          setFormFieldValue("localTimeZone", env.ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE);
+        } else if (!env.ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE && env.ST_CHARACTER_WECHAT_REPORT_TIME_ZONE) {
+          setFormFieldValue("localTimeZone", env.ST_CHARACTER_WECHAT_REPORT_TIME_ZONE);
+        }
+
+        if (!env.ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_HOUR && env.ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME) {
+          setFormFieldValue("dailyWeatherReminderHour", extractClockHour(env.ST_CHARACTER_WECHAT_DAILY_WEATHER_REMINDER_TIME, "8"));
+        }
+
+        setFallbackFormFieldValue("apiBaseUrl", env.OPENAI_BASE_URL || env.DEEPSEEK_BASE_URL || "");
+        setFallbackFormFieldValue("apiKey", env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY || "");
+        setApiModelOptions([], env.ST_CHARACTER_WECHAT_API_MODEL || env.OPENAI_MODEL || env.DEEPSEEK_MODEL || "");
+        setMemoryModelOptions(
+          [],
+          env.ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_EMBEDDING_MODEL || "",
+          env.ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_MODEL || "",
+        );
+        applyMemoryRetrievalVisibility();
+      } finally {
+        isHydratingEnvForm = false;
+      }
+      renderEnv();
+      return true;
+    }
+
+    function normalizeRuntimeForForm(value, env = {}) {
+      const runtime = normalizeText(value).toLowerCase();
+      if (runtime === "codex" || runtime === "claudecode") {
+        return runtime;
+      }
+      if (runtime || env.ST_CHARACTER_WECHAT_API_BASE_URL || env.ST_CHARACTER_WECHAT_API_KEY || env.ST_CHARACTER_WECHAT_API_MODEL) {
+        return "api";
+      }
+      return "codex";
+    }
+
+    function setFormFieldValue(id, value) {
+      const field = document.getElementById(id);
+      if (!field) return;
+      field.value = String(value ?? "");
+    }
+
+    function setFallbackFormFieldValue(id, value) {
+      const field = document.getElementById(id);
+      if (!field || normalizeText(field.value) || !normalizeText(value)) return;
+      field.value = String(value);
+    }
+
+    function normalizeEnvValueForField(fieldId, value) {
+      const text = normalizeText(value);
+      if (fieldId === "proactiveChatPendingLimit" && /^(?:unlimited|none|no-limit|nolimit)$/iu.test(text)) {
+        return "";
+      }
+      if (fieldId === "dailyWeatherReminderHour") {
+        return extractClockHour(text, "8");
+      }
+      return text;
+    }
+
+    function extractClockHour(value, fallback = "") {
+      const text = normalizeText(value);
+      const match = text.match(/^(\d{1,2})(?::\d{1,2})?$/u);
+      if (!match) return fallback;
+      const hour = Number.parseInt(match[1], 10);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) return fallback;
+      return String(hour);
     }
 
     function getActivePanelId() {
@@ -1854,7 +2034,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       for (const line of String(text || "").split(/\r?\n/)) {
         const key = parseEnvKey(line);
         if (!key) continue;
-        map[key] = line.slice(line.indexOf("=") + 1).trim();
+        map[key] = parseEnvValue(line);
       }
       return map;
     }
@@ -1868,6 +2048,14 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
 
     function formatEnvLine(key, value) {
       return `${key}=${String(value || "").trim()}`;
+    }
+
+    function parseEnvValue(line) {
+      let value = String(line || "").slice(String(line || "").indexOf("=") + 1).trim();
+      if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      return value.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\"/g, "\"").replace(/\\'/g, "'");
     }
 
     function bindCardScanner() {
