@@ -16,7 +16,7 @@ Content-Type: application/json
   "messages": [
     { "role": "user", "content": "hello" }
   ],
-  "stream": false
+  "stream": true
 }
 ```
 
@@ -54,7 +54,8 @@ Notes:
 - When `ST_CHARACTER_WECHAT_RUNTIME=gemini`, the default base URL is Google's OpenAI-compatible Gemini endpoint: `https://generativelanguage.googleapis.com/v1beta/openai`.
 - When `ST_CHARACTER_WECHAT_RUNTIME=deepseek`, the default base URL is `https://api.deepseek.com/v1`.
 - The API key stays in the user's local `.env`; never commit it.
-- This runtime is text-only and does not support tool calling, approval prompts, or streaming SSE yet.
+- This runtime is text-only and does not support tool calling or approval prompts.
+- Streaming SSE is used when the provider supports it. If the provider buffers or returns a non-SSE response, the full reply is still split into natural WeChat bubbles, and bubble delivery delay is handled by the WeChat channel pacing settings.
 - Character thread isolation still uses the shared ST Character WeChat session store.
 
 Reference: [Google Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai).

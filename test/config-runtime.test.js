@@ -18,6 +18,9 @@ const RUNTIME_KEYS = [
   "ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES",
   "ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS",
   "ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS",
+  "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS",
+  "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS",
+  "ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND",
   "ST_CHARACTER_WECHAT_API_STREAMING_ENABLED",
   "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
   "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
@@ -59,6 +62,9 @@ test("readConfig reads message pacing and API streaming options", () => {
     ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES: "3",
     ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS: "2",
     ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS: "9",
+    ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS: "1.5",
+    ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS: "7",
+    ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND: "12",
     ST_CHARACTER_WECHAT_API_STREAMING_ENABLED: "false",
     ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED: "false",
     ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS: "5",
@@ -72,6 +78,9 @@ test("readConfig reads message pacing and API streaming options", () => {
     assert.equal(config.inboundBatchMaxMessages, 3);
     assert.equal(config.typingMinDelaySeconds, 2);
     assert.equal(config.typingMaxDelaySeconds, 9);
+    assert.equal(config.replyBubbleMinDelaySeconds, 1.5);
+    assert.equal(config.replyBubbleMaxDelaySeconds, 7);
+    assert.equal(config.replyBubbleCharsPerSecond, 12);
     assert.equal(config.apiStreamingEnabled, false);
     assert.equal(config.apiTimeCompactionEnabled, false);
     assert.equal(config.apiHistoryRecentDays, 5);

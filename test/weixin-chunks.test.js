@@ -14,6 +14,7 @@ const {
   packChunksForWeixinDelivery,
   collectStreamingBoundaries,
   trimOuterBlankLines,
+  resolveReplyBubbleDelayMs,
 } = require("../src/adapters/channel/weixin/index");
 const { stripInternalReplyBlocks } = require("../src/core/reply-cleaning");
 
@@ -172,4 +173,16 @@ test("splitUtf8 hard-truncates oversized text", () => {
 
 test("trimOuterBlankLines strips leading and trailing blank lines", () => {
   assert.equal(trimOuterBlankLines("\n\nhello\n\n"), "hello");
+});
+
+test("resolveReplyBubbleDelayMs scales with bubble length and jitter", () => {
+  const config = {
+    replyBubbleMinDelaySeconds: 1,
+    replyBubbleMaxDelaySeconds: 5,
+    replyBubbleCharsPerSecond: 10,
+  };
+  assert.equal(resolveReplyBubbleDelayMs({ text: "短句", config, random: () => 0.5 }), 1000);
+  assert.equal(resolveReplyBubbleDelayMs({ text: "长".repeat(80), config, random: () => 0.5 }), 5000);
+  assert.equal(resolveReplyBubbleDelayMs({ text: "abcdefghijklmnopqrst", config, random: () => 0 }), 1500);
+  assert.equal(resolveReplyBubbleDelayMs({ text: "abcdefghijklmnopqrst", config, random: () => 1 }), 2500);
 });

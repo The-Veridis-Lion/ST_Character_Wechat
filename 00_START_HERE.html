@@ -778,7 +778,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
 
       <div class="field-section model-section">
         <h3>消息节奏</h3>
-        <p class="status section-note">普通微信消息会先短暂等待，等待窗口内继续发来的消息会合并成一轮发给 AI。正在输入会在收到消息后随机延迟出现；API 流式开启后，会按自然句子边界陆续发送完整气泡。</p>
+        <p class="status section-note">普通微信消息会先短暂等待，等待窗口内继续发来的消息会合并成一轮发给 AI。正在输入会在收到消息后随机延迟出现；回复会按自然句子边界拆成完整气泡，并根据气泡长度间隔发送。</p>
         <div class="form-grid">
           <div class="compact-field-row">
             <label class="compact-field">合并等待（秒）
@@ -792,6 +792,15 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
             </label>
             <label class="compact-field">正在输入最长（秒）
               <input id="typingMaxDelaySeconds" class="short-select" type="number" min="0" step="1" value="10">
+            </label>
+            <label class="compact-field">气泡最短间隔（秒）
+              <input id="replyBubbleMinDelaySeconds" class="short-select" type="number" min="0" step="0.1" value="1.2">
+            </label>
+            <label class="compact-field">气泡最长间隔（秒）
+              <input id="replyBubbleMaxDelaySeconds" class="short-select" type="number" min="0" step="0.1" value="6">
+            </label>
+            <label class="compact-field">模拟字速（字/秒）
+              <input id="replyBubbleCharsPerSecond" class="short-select" type="number" min="1" step="1" value="18">
             </label>
           </div>
         </div>
@@ -899,12 +908,6 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
             </select>
           </label>
           <div class="api-history-main-row" data-runtime-field="api">
-            <label>流式气泡发送
-              <select id="apiStreamingEnabled">
-                <option value="true">开启</option>
-                <option value="false">关闭</option>
-              </select>
-            </label>
             <label>API 历史压缩
               <select id="apiTimeCompactionEnabled">
                 <option value="true">开启</option>
@@ -1216,10 +1219,11 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       "runtimeSelect", "allowedUserIds", "userName", "userGender", "localTimeZone", "localLocation",
       "dailyWeatherReminderEnabled", "dailyWeatherReminderHour",
       "inboundBatchWindowSeconds", "inboundBatchMaxMessages", "typingMinDelaySeconds", "typingMaxDelaySeconds",
+      "replyBubbleMinDelaySeconds", "replyBubbleMaxDelaySeconds", "replyBubbleCharsPerSecond",
       "proactiveChatEnabled", "proactiveChatStartTime", "proactiveChatEndTime",
       "proactiveChatMinDelayMinutes", "proactiveChatMaxDelayMinutes", "proactiveChatPendingLimit",
       "autoDailyReportEnabled", "autoDailyReportTime", "autoWeeklyReportEnabled", "autoWeeklyReportWeekday", "autoWeeklyReportTime",
-      "apiBaseUrl", "apiKey", "apiModel", "apiStreamingEnabled", "apiTimeCompactionEnabled",
+      "apiBaseUrl", "apiKey", "apiModel", "apiTimeCompactionEnabled",
       "apiHistoryRecentDays", "apiHistoryWeeklyCompactAfterDays", "apiHistoryWeeklySummaryChars",
       "apiHistoryMonthlyCompactAfterDays", "apiHistoryMonthlySummaryChars",
       "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
@@ -1238,6 +1242,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES: "inboundBatchMaxMessages",
       ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS: "typingMinDelaySeconds",
       ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS: "typingMaxDelaySeconds",
+      ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS: "replyBubbleMinDelaySeconds",
+      ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS: "replyBubbleMaxDelaySeconds",
+      ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND: "replyBubbleCharsPerSecond",
       ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED: "proactiveChatEnabled",
       ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME: "proactiveChatStartTime",
       ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME: "proactiveChatEndTime",
@@ -1251,7 +1258,6 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       ST_CHARACTER_WECHAT_AUTO_WEEKLY_REPORT_TIME: "autoWeeklyReportTime",
       ST_CHARACTER_WECHAT_API_BASE_URL: "apiBaseUrl",
       ST_CHARACTER_WECHAT_API_KEY: "apiKey",
-      ST_CHARACTER_WECHAT_API_STREAMING_ENABLED: "apiStreamingEnabled",
       ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED: "apiTimeCompactionEnabled",
       ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS: "apiHistoryRecentDays",
       ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS: "apiHistoryWeeklyCompactAfterDays",
@@ -1415,6 +1421,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         `ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES=${valueOf("inboundBatchMaxMessages") || "4"}`,
         `ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS=${valueOf("typingMinDelaySeconds") || "5"}`,
         `ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS=${valueOf("typingMaxDelaySeconds") || "10"}`,
+        `ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS=${valueOf("replyBubbleMinDelaySeconds") || "1.2"}`,
+        `ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS=${valueOf("replyBubbleMaxDelaySeconds") || "6"}`,
+        `ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND=${valueOf("replyBubbleCharsPerSecond") || "18"}`,
         `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED=${valueOf("proactiveChatEnabled") || "false"}`,
         `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME=${valueOf("proactiveChatStartTime") || "10:00"}`,
         `ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME=${valueOf("proactiveChatEndTime") || "23:30"}`,
@@ -1451,7 +1460,6 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         lines.push(`ST_CHARACTER_WECHAT_API_KEY=${valueOf("apiKey")}`);
         lines.push(`ST_CHARACTER_WECHAT_API_MODEL=${valueOf("apiModel")}`);
         lines.push("ST_CHARACTER_WECHAT_API_HISTORY_LIMIT=80");
-        lines.push(`ST_CHARACTER_WECHAT_API_STREAMING_ENABLED=${valueOf("apiStreamingEnabled") || "true"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED=${valueOf("apiTimeCompactionEnabled") || "true"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS=${valueOf("apiHistoryRecentDays") || "3"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS=${valueOf("apiHistoryWeeklyCompactAfterDays") || "7"}`);
@@ -1506,14 +1514,23 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       const batchMaxText = valueOf("inboundBatchMaxMessages") || "4";
       const typingMinText = valueOf("typingMinDelaySeconds") || "5";
       const typingMaxText = valueOf("typingMaxDelaySeconds") || "10";
+      const bubbleMinText = valueOf("replyBubbleMinDelaySeconds") || "1.2";
+      const bubbleMaxText = valueOf("replyBubbleMaxDelaySeconds") || "6";
+      const bubbleCharsText = valueOf("replyBubbleCharsPerSecond") || "18";
       const typingMin = Number.parseFloat(typingMinText);
       const typingMax = Number.parseFloat(typingMaxText);
+      const bubbleMin = Number.parseFloat(bubbleMinText);
+      const bubbleMax = Number.parseFloat(bubbleMaxText);
       if (!/^\d+(?:\.\d+)?$/u.test(batchWindowText) || !/^[1-9]\d*$/u.test(batchMaxText)) {
         setStatus("envSaveStatus", "消息合并等待需要是非负数字，最多合并条数需要是正整数。", "warning");
         return;
       }
       if (!/^\d+(?:\.\d+)?$/u.test(typingMinText) || !/^\d+(?:\.\d+)?$/u.test(typingMaxText) || typingMin > typingMax) {
         setStatus("envSaveStatus", "正在输入延迟需要是非负数字，且最短不能大于最长。", "warning");
+        return;
+      }
+      if (!/^\d+(?:\.\d+)?$/u.test(bubbleMinText) || !/^\d+(?:\.\d+)?$/u.test(bubbleMaxText) || bubbleMin > bubbleMax || !/^[1-9]\d*(?:\.\d+)?$/u.test(bubbleCharsText)) {
+        setStatus("envSaveStatus", "气泡间隔需要是非负数字，最短不能大于最长；模拟字速需要大于 0。", "warning");
         return;
       }
       if (valueOf("runtimeSelect") === "api") {
@@ -1962,6 +1979,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES",
         "ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS",
         "ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME",
@@ -1980,7 +2000,6 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_API_KEY",
         "ST_CHARACTER_WECHAT_API_MODEL",
         "ST_CHARACTER_WECHAT_API_HISTORY_LIMIT",
-        "ST_CHARACTER_WECHAT_API_STREAMING_ENABLED",
         "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
         "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
         "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS",
@@ -2029,6 +2048,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES",
         "ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS",
         "ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MIN_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_MAX_DELAY_SECONDS",
+        "ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_ENABLED",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_START_TIME",
         "ST_CHARACTER_WECHAT_PROACTIVE_CHAT_END_TIME",
@@ -2060,7 +2082,6 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_API_KEY",
         "ST_CHARACTER_WECHAT_API_MODEL",
         "ST_CHARACTER_WECHAT_API_HISTORY_LIMIT",
-        "ST_CHARACTER_WECHAT_API_STREAMING_ENABLED",
         "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
         "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
         "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS",

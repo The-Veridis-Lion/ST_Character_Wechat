@@ -56,6 +56,8 @@ You can also enable a daily weather / outfit reminder. It runs once during the s
 
 You can also enable proactive character chat. After each normal character reply, the app rolls the next proactive message inside your configured delay range. A user message resets the plan, and the maximum number of proactive turns while waiting for the user can be configured.
 
+Remote API replies prefer streaming when the provider supports it. WeChat bubbles are still sent as complete natural sentences, with configurable length-based delays between bubbles, so a provider that returns everything at once does not make the reply arrive as one instant burst.
+
 ### Optional Long-Term Memory Search
 
 This is optional. When enabled, embeddings and optional rerank can retrieve a few relevant older local memories. The app does not send the entire history to the model every turn.

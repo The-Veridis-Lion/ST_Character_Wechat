@@ -17,7 +17,10 @@ const {
 
 const LONG_POLL_TIMEOUT_MS = 35_000;
 const MAX_WEIXIN_CHUNK = 3800;
-const SEND_MESSAGE_CHUNK_INTERVAL_MS = 350;
+const DEFAULT_REPLY_BUBBLE_MIN_DELAY_SECONDS = 1.2;
+const DEFAULT_REPLY_BUBBLE_MAX_DELAY_SECONDS = 6;
+const DEFAULT_REPLY_BUBBLE_CHARS_PER_SECOND = 18;
+const REPLY_BUBBLE_DELAY_JITTER = 0.25;
 const WEIXIN_MAX_DELIVERY_MESSAGES = 10;
 const NATURAL_WEIXIN_MIN_DELIVERY_MESSAGES = 2;
 const NATURAL_WEIXIN_MAX_DELIVERY_MESSAGES = 5;
@@ -28,6 +31,8 @@ function createWeixinChannelAdapter(config) {
   const inboundFilter = createInboundFilter();
   let weixinConfig = loadWeixinConfig(config);
   let minWeixinChunk = weixinConfig.minChunkChars;
+  const replyBubbleQueueByUserId = new Map();
+  const replyBubbleNextAvailableAtByUserId = new Map();
 
   function ensureAccount() {
     if (!selectedAccount) {
@@ -128,7 +133,8 @@ function createWeixinChannelAdapter(config) {
         singleLine ? NATURAL_WEIXIN_MAX_DELIVERY_MESSAGES : WEIXIN_MAX_DELIVERY_MESSAGES,
         MAX_WEIXIN_CHUNK
       );
-    return sendChunks.reduce((promise, chunk, index) => promise
+    const deliver = () => sendChunks.reduce((promise, chunk) => promise
+      .then(() => waitForReplyBubbleSlot(userId, { enabled: singleLine }))
       .then(() => {
         const normalizedChunk = singleLine
           ? normalizeNaturalWeixinBubbleText(chunk)
@@ -141,14 +147,55 @@ function createWeixinChannelAdapter(config) {
           text: compactChunk,
           contextToken: resolvedToken,
           clientId: `cb-${crypto.randomUUID()}`,
+        }).then(() => {
+          noteReplyBubbleSent(userId, compactChunk, { enabled: singleLine });
         });
-      })
-      .then(() => {
-        if (index < sendChunks.length - 1) {
-          return sleep(SEND_MESSAGE_CHUNK_INTERVAL_MS);
-        }
-        return null;
       }), Promise.resolve());
+    return singleLine ? enqueueReplyBubbleDelivery(userId, deliver) : deliver();
+  }
+
+  function enqueueReplyBubbleDelivery(userId, task) {
+    const key = normalizeQueueUserId(userId);
+    if (!key) {
+      return task();
+    }
+    const previous = replyBubbleQueueByUserId.get(key) || Promise.resolve();
+    const run = previous.catch(() => null).then(task);
+    const tracked = run.finally(() => {
+      if (replyBubbleQueueByUserId.get(key) === tracked) {
+        replyBubbleQueueByUserId.delete(key);
+      }
+    });
+    replyBubbleQueueByUserId.set(key, tracked);
+    return tracked;
+  }
+
+  function waitForReplyBubbleSlot(userId, { enabled = false } = {}) {
+    if (!enabled) {
+      return Promise.resolve();
+    }
+    const key = normalizeQueueUserId(userId);
+    const nextAvailableAt = key ? Number(replyBubbleNextAvailableAtByUserId.get(key)) || 0 : 0;
+    const waitMs = Math.max(0, nextAvailableAt - Date.now());
+    return waitMs > 0 ? sleep(waitMs) : Promise.resolve();
+  }
+
+  function noteReplyBubbleSent(userId, text, { enabled = false } = {}) {
+    if (!enabled) {
+      return;
+    }
+    const key = normalizeQueueUserId(userId);
+    if (!key) {
+      return;
+    }
+    replyBubbleNextAvailableAtByUserId.set(key, Date.now() + resolveReplyBubbleDelayMs({
+      text,
+      config,
+    }));
+  }
+
+  function normalizeQueueUserId(userId) {
+    return typeof userId === "string" ? userId.trim() : "";
   }
 
   return {
@@ -684,6 +731,52 @@ function trimOuterBlankLines(text) {
     .replace(/\n+\s*$/g, "");
 }
 
+function resolveReplyBubbleDelayMs({ text = "", config = {}, random = Math.random } = {}) {
+  let minMs = secondsToMilliseconds(
+    config.replyBubbleMinDelaySeconds,
+    DEFAULT_REPLY_BUBBLE_MIN_DELAY_SECONDS * 1000,
+  );
+  let maxMs = secondsToMilliseconds(
+    config.replyBubbleMaxDelaySeconds,
+    DEFAULT_REPLY_BUBBLE_MAX_DELAY_SECONDS * 1000,
+  );
+  if (minMs > maxMs) {
+    [minMs, maxMs] = [maxMs, minMs];
+  }
+  if (maxMs <= 0) {
+    return 0;
+  }
+
+  const configuredCharsPerSecond = Number(config.replyBubbleCharsPerSecond);
+  const charsPerSecond = Number.isFinite(configuredCharsPerSecond) && configuredCharsPerSecond > 0
+    ? configuredCharsPerSecond
+    : DEFAULT_REPLY_BUBBLE_CHARS_PER_SECOND;
+  const visibleChars = countVisibleReplyChars(text);
+  const lengthBasedMs = visibleChars > 0
+    ? visibleChars / charsPerSecond * 1000
+    : minMs;
+  const baseMs = clampNumber(lengthBasedMs, minMs, maxMs);
+  const randomValue = clampNumber(Number(random()), 0, 1);
+  const jitter = 1 + (randomValue * 2 - 1) * REPLY_BUBBLE_DELAY_JITTER;
+  return Math.round(clampNumber(baseMs * jitter, minMs, maxMs));
+}
+
+function countVisibleReplyChars(text) {
+  return String(text || "").replace(/\s+/g, "").length;
+}
+
+function secondsToMilliseconds(value, fallbackMs) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return fallbackMs;
+  }
+  return seconds * 1000;
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -703,4 +796,5 @@ module.exports = {
   packChunksForWeixinDelivery,
   collectStreamingBoundaries,
   trimOuterBlankLines,
+  resolveReplyBubbleDelayMs,
 };
