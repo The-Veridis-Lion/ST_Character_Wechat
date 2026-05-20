@@ -112,7 +112,7 @@ git branch --set-upstream-to=origin/%STCW_BRANCH% %STCW_BRANCH% >nul 2>nul
 echo.
 
 echo Step 3/5: installing or refreshing dependencies.
-npm install
+call npm install
 if errorlevel 1 (
   echo.
   echo npm install failed. Check the network and npm output above.
@@ -136,7 +136,7 @@ if exist "scripts\prepare-windows-start.js" (
 echo.
 
 echo Step 5/5: running project check.
-npm run check
+call npm run check
 if errorlevel 1 (
   echo.
   echo Project check failed. The app was not started.

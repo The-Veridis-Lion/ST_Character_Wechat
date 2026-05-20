@@ -50,7 +50,7 @@ if exist "scripts\prepare-windows-start.js" (
   )
 )
 
-npm run start
+call npm run start
 set "EXIT_CODE=%ERRORLEVEL%"
 
 echo.
