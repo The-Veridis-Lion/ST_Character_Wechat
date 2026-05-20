@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { stripInternalReplyBlocks } = require("../../../core/reply-cleaning");
 
 class ApiThreadStore {
   constructor({ filePath, maxMessages = 80 }) {
@@ -18,11 +19,16 @@ class ApiThreadStore {
     try {
       const parsed = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        this.state = {
+        const state = {
           ...createEmptyState(),
           ...parsed,
           threads: parsed.threads && typeof parsed.threads === "object" ? parsed.threads : {},
         };
+        const normalized = normalizeLoadedState(state);
+        this.state = normalized.state;
+        if (normalized.changed) {
+          this.save();
+        }
       }
     } catch {
       this.state = createEmptyState();
@@ -137,7 +143,9 @@ function normalizeStoredMessage(message) {
     return null;
   }
   const role = normalizeApiRole(message.role);
-  const text = normalizeText(message.text);
+  const text = role === "model"
+    ? normalizeAssistantHistoryText(message.text)
+    : normalizeText(message.text);
   if (!role || !text) {
     return null;
   }
@@ -147,6 +155,41 @@ function normalizeStoredMessage(message) {
     text,
     createdAt: normalizeText(message.createdAt) || new Date().toISOString(),
   };
+}
+
+function normalizeLoadedState(state) {
+  const normalizedState = {
+    ...createEmptyState(),
+    ...state,
+    threads: {},
+  };
+  let changed = false;
+  for (const [threadId, thread] of Object.entries(state.threads || {})) {
+    const normalizedThreadId = normalizeText(thread?.threadId) || normalizeText(threadId);
+    if (!normalizedThreadId) {
+      changed = true;
+      continue;
+    }
+    const rawMessages = Array.isArray(thread.messages) ? thread.messages : [];
+    const messages = rawMessages.map(normalizeStoredMessage).filter(Boolean);
+    if (messages.length !== rawMessages.length || messages.some((message, index) => message.text !== rawMessages[index]?.text || message.role !== normalizeApiRole(rawMessages[index]?.role))) {
+      changed = true;
+    }
+    normalizedState.threads[normalizedThreadId] = {
+      ...thread,
+      threadId: normalizedThreadId,
+      metadata: thread?.metadata && typeof thread.metadata === "object" ? { ...thread.metadata } : {},
+      messages,
+      workspaceRoot: normalizeText(thread?.workspaceRoot),
+      createdAt: normalizeText(thread?.createdAt) || new Date().toISOString(),
+      updatedAt: normalizeText(thread?.updatedAt) || new Date().toISOString(),
+    };
+  }
+  return { state: normalizedState, changed };
+}
+
+function normalizeAssistantHistoryText(value) {
+  return normalizeText(stripInternalReplyBlocks(normalizeText(value)));
 }
 
 function normalizePositiveInteger(value) {

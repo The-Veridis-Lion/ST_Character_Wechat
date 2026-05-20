@@ -18,6 +18,7 @@ const { findModelByQuery } = require("../adapters/runtime/codex/model-catalog");
 const { createTimelineIntegration } = require("../integrations/timeline");
 const { buildWeixinHelpText } = require("./command-registry");
 const { StreamDelivery } = require("./stream-delivery");
+const { stripInternalReplyBlocks } = require("./reply-cleaning");
 const { ThreadStateStore } = require("./thread-state-store");
 const { CharacterLibrary } = require("./characters/library");
 const { CharacterStateStore, buildCharacterBindingKey } = require("./characters/state-store");
@@ -3556,11 +3557,11 @@ function resolveReportCardRuntimeText(pendingOperation, event) {
 }
 
 function resolvePendingRunText(pendingOperation, event) {
-  const direct = normalizeText(event?.payload?.text);
+  const direct = normalizeVisibleRuntimeText(event?.payload?.text);
   if (direct) {
     return direct;
   }
-  const turnText = normalizeText(pendingOperation?.turnText);
+  const turnText = normalizeVisibleRuntimeText(pendingOperation?.turnText);
   if (turnText) {
     return turnText;
   }
@@ -3569,14 +3570,18 @@ function resolvePendingRunText(pendingOperation, event) {
     ? pendingOperation.itemTextById
     : {};
   const itemText = itemOrder
-    .map((itemId) => normalizeText(itemTextById[itemId]))
+    .map((itemId) => normalizeVisibleRuntimeText(itemTextById[itemId]))
     .filter(Boolean)
     .join("\n\n")
     .trim();
   if (itemText) {
     return itemText;
   }
-  return normalizeText(pendingOperation?.streamingText);
+  return normalizeVisibleRuntimeText(pendingOperation?.streamingText);
+}
+
+function normalizeVisibleRuntimeText(value) {
+  return normalizeText(stripInternalReplyBlocks(String(value || "")));
 }
 
 function appendRuntimeTextFragment(current, next) {

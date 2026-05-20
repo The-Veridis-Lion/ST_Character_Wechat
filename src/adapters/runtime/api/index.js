@@ -3,6 +3,7 @@ const { EventEmitter } = require("events");
 const { buildOpeningTurnText } = require("../shared-instructions");
 const { SessionStore } = require("../codex/session-store");
 const { ApiThreadStore } = require("./thread-store");
+const { stripInternalReplyBlocks } = require("../../../core/reply-cleaning");
 
 const DEFAULT_API_HISTORY_LIMIT = 80;
 const DEFAULT_API_RECENT_DAYS = 3;
@@ -163,7 +164,7 @@ async function runApiTurn({
   try {
     const thread = threadStore.getThread(threadId);
     const itemId = `api-reply-${turnId}`;
-    const text = config.apiStreamingEnabled === false
+    const rawText = config.apiStreamingEnabled === false
       ? extractApiResponseText(await callApiChatCompletions({
           fetchImpl,
           config,
@@ -190,6 +191,7 @@ async function runApiTurn({
             });
           },
         });
+    const text = sanitizeApiAssistantText(rawText);
     if (!text) {
       throw new Error("API runtime returned no text.");
     }
@@ -706,6 +708,10 @@ function tryParseJson(value) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function sanitizeApiAssistantText(value) {
+  return normalizeText(stripInternalReplyBlocks(normalizeText(value)));
 }
 
 module.exports = {

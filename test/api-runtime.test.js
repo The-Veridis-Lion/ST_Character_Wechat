@@ -9,6 +9,7 @@ const {
   buildApiChatCompletionsUrl,
   extractApiResponseText,
 } = require("../src/adapters/runtime/api");
+const { ApiThreadStore } = require("../src/adapters/runtime/api/thread-store");
 
 test("API URL builder targets chat completions", () => {
   assert.equal(
@@ -87,6 +88,76 @@ test("API runtime emits completed turn events and stores local thread history", 
     content: "你好",
   });
   assert.ok(events.some((event) => event.type === "runtime.reply.completed" && event.payload.text === "在呢"));
+});
+
+test("API runtime stores only visible assistant text in local history", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-clean-history-test-"));
+  const adapter = createApiRuntimeAdapter({
+    runtime: "api",
+    sessionsFile: path.join(dir, "sessions.json"),
+    apiThreadsFile: path.join(dir, "api-threads.json"),
+    apiBaseUrl: "https://api.example.test/v1",
+    apiKey: "test-key",
+    apiModel: "chat-model",
+    apiHistoryLimit: 10,
+  }, {
+    fetch: async () => ({
+      ok: true,
+      async text() {
+        return JSON.stringify({
+          choices: [{
+            message: { content: "<think>hidden reasoning</think>\n可见回复" },
+          }],
+        });
+      },
+    }),
+  });
+
+  const events = [];
+  adapter.onEvent((event) => events.push(event));
+  await adapter.sendTextTurn({
+    bindingKey: "binding-clean",
+    workspaceRoot: "/workspace",
+    text: "你好",
+    metadata: { characterChat: true },
+  });
+
+  await waitFor(() => events.some((event) => event.type === "runtime.turn.completed"));
+
+  const stored = JSON.parse(fs.readFileSync(path.join(dir, "api-threads.json"), "utf8"));
+  const messages = Object.values(stored.threads)[0].messages;
+  assert.equal(messages.at(-1).role, "model");
+  assert.equal(messages.at(-1).text, "可见回复");
+  assert.ok(events.some((event) => event.type === "runtime.reply.completed" && event.payload.text === "可见回复"));
+  assert.ok(!JSON.stringify(stored).includes("hidden reasoning"));
+});
+
+test("API thread store cleans hidden reasoning from existing model history on load", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-clean-existing-test-"));
+  const filePath = path.join(dir, "api-threads.json");
+  fs.writeFileSync(filePath, JSON.stringify({
+    threads: {
+      "thread-1": {
+        threadId: "thread-1",
+        workspaceRoot: "/workspace",
+        messages: [
+          { role: "user", text: "用户提到 <think> 这个字面标签" },
+          { role: "model", text: "<think>MODEL_SECRET</think>\n可见回复" },
+          { role: "assistant", text: "思维链: MODEL_SECRET_TWO\n\n第二条可见回复" },
+        ],
+      },
+    },
+  }, null, 2));
+
+  const store = new ApiThreadStore({ filePath, maxMessages: 10 });
+  const thread = store.getThread("thread-1");
+
+  assert.equal(thread.messages[0].text, "用户提到 <think> 这个字面标签");
+  assert.equal(thread.messages[1].text, "可见回复");
+  assert.equal(thread.messages[2].text, "第二条可见回复");
+  const persisted = fs.readFileSync(filePath, "utf8");
+  assert.ok(!persisted.includes("MODEL_SECRET"));
+  assert.ok(!persisted.includes("MODEL_SECRET_TWO"));
 });
 
 test("API runtime emits streaming delta events from SSE responses", async () => {
