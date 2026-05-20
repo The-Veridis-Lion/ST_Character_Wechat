@@ -126,6 +126,14 @@ function readConfig() {
     apiHistoryWeeklyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS", 7),
     apiHistoryMonthlyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS", 30),
     apiHistorySummaryChars: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
+    apiHistoryWeeklySummaryChars: resolvePositiveIntEnv(
+      "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS",
+      resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
+    ),
+    apiHistoryMonthlySummaryChars: resolvePositiveIntEnv(
+      "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS",
+      resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
+    ),
     apiThreadsFile: path.join(stateDir, "api-threads.json"),
     sessionsFile: path.join(stateDir, "sessions.json"),
   };

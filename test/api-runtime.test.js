@@ -152,7 +152,8 @@ test("API runtime compacts older local history into plain text summaries", async
     apiHistoryRecentDays: 3,
     apiHistoryWeeklyCompactAfterDays: 7,
     apiHistoryMonthlyCompactAfterDays: 30,
-    apiHistorySummaryChars: 500,
+    apiHistoryWeeklySummaryChars: 500,
+    apiHistoryMonthlySummaryChars: 900,
   };
   const runtimeOptions = {
     fetch: async (url, init) => {

@@ -279,6 +279,22 @@
       align-items: end;
     }
 
+    .api-history-main-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(150px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .api-history-summary-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(132px, 150px) minmax(180px, 240px) minmax(132px, 150px) minmax(180px, 240px);
+      gap: 14px;
+      align-items: end;
+    }
+
     .inline-field-pair {
       display: grid;
       grid-template-columns: repeat(2, minmax(132px, 150px));
@@ -533,6 +549,8 @@
       }
 
       .compact-field-row,
+      .api-history-main-row,
+      .api-history-summary-row,
       .inline-field-pair {
         grid-template-columns: 1fr;
       }
@@ -880,30 +898,37 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
               <option value="">先获取模型列表</option>
             </select>
           </label>
-          <label data-runtime-field="api">流式气泡发送
-            <select id="apiStreamingEnabled">
-              <option value="true">开启</option>
-              <option value="false">关闭</option>
-            </select>
-          </label>
-          <label data-runtime-field="api">API 历史压缩
-            <select id="apiTimeCompactionEnabled">
-              <option value="true">开启</option>
-              <option value="false">关闭</option>
-            </select>
-          </label>
-          <label data-runtime-field="api">原文保留天数
-            <input id="apiHistoryRecentDays" type="number" min="1" step="1" value="3">
-          </label>
-          <label data-runtime-field="api">周摘要起始天数
-            <input id="apiHistoryWeeklyCompactAfterDays" type="number" min="2" step="1" value="7">
-          </label>
-          <label data-runtime-field="api">月摘要起始天数
-            <input id="apiHistoryMonthlyCompactAfterDays" type="number" min="3" step="1" value="30">
-          </label>
-          <label data-runtime-field="api">摘要最大字符
-            <input id="apiHistorySummaryChars" type="number" min="200" step="100" value="1800">
-          </label>
+          <div class="api-history-main-row" data-runtime-field="api">
+            <label>流式气泡发送
+              <select id="apiStreamingEnabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+            <label>API 历史压缩
+              <select id="apiTimeCompactionEnabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+            <label>原文保留天数
+              <input id="apiHistoryRecentDays" type="number" min="1" step="1" value="3">
+            </label>
+          </div>
+          <div class="api-history-summary-row" data-runtime-field="api">
+            <label>周摘要起始天数
+              <input id="apiHistoryWeeklyCompactAfterDays" type="number" min="2" step="1" value="7">
+            </label>
+            <label>周摘要最大字符
+              <input id="apiHistoryWeeklySummaryChars" type="number" min="200" step="100" value="1800">
+            </label>
+            <label>月摘要起始天数
+              <input id="apiHistoryMonthlyCompactAfterDays" type="number" min="3" step="1" value="30">
+            </label>
+            <label>月摘要最大字符
+              <input id="apiHistoryMonthlySummaryChars" type="number" min="200" step="100" value="1800">
+            </label>
+          </div>
         </div>
         <p class="status section-note" data-runtime-field="codex claudecode">当前选择的是本地运行方式，不需要填写远程聊天 API。要使用 OpenAI、Gemini、DeepSeek 或其他兼容服务，请先选择“远程 API”。</p>
         <div class="actions">
@@ -1194,7 +1219,8 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       "proactiveChatMinDelayMinutes", "proactiveChatMaxDelayMinutes", "proactiveChatPendingLimit",
       "autoDailyReportEnabled", "autoDailyReportTime", "autoWeeklyReportEnabled", "autoWeeklyReportWeekday", "autoWeeklyReportTime",
       "apiBaseUrl", "apiKey", "apiModel", "apiStreamingEnabled", "apiTimeCompactionEnabled",
-      "apiHistoryRecentDays", "apiHistoryWeeklyCompactAfterDays", "apiHistoryMonthlyCompactAfterDays", "apiHistorySummaryChars",
+      "apiHistoryRecentDays", "apiHistoryWeeklyCompactAfterDays", "apiHistoryWeeklySummaryChars",
+      "apiHistoryMonthlyCompactAfterDays", "apiHistoryMonthlySummaryChars",
       "memoryRetrievalEnabled", "memoryRetrievalRerankEnabled", "memoryRetrievalBaseUrl",
       "memoryRetrievalApiKey", "memoryEmbeddingModel", "memoryRerankModel",
     ];
@@ -1228,8 +1254,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED: "apiTimeCompactionEnabled",
       ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS: "apiHistoryRecentDays",
       ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS: "apiHistoryWeeklyCompactAfterDays",
+      ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS: "apiHistoryWeeklySummaryChars",
       ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS: "apiHistoryMonthlyCompactAfterDays",
-      ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS: "apiHistorySummaryChars",
+      ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS: "apiHistoryMonthlySummaryChars",
       ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED: "memoryRetrievalEnabled",
       ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED: "memoryRetrievalRerankEnabled",
       ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_BASE_URL: "memoryRetrievalBaseUrl",
@@ -1415,8 +1442,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         lines.push(`ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED=${valueOf("apiTimeCompactionEnabled") || "true"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS=${valueOf("apiHistoryRecentDays") || "3"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS=${valueOf("apiHistoryWeeklyCompactAfterDays") || "7"}`);
+        lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS=${valueOf("apiHistoryWeeklySummaryChars") || "1800"}`);
         lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS=${valueOf("apiHistoryMonthlyCompactAfterDays") || "30"}`);
-        lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS=${valueOf("apiHistorySummaryChars") || "1800"}`);
+        lines.push(`ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS=${valueOf("apiHistoryMonthlySummaryChars") || "1800"}`);
       }
       lines.push("");
       lines.push("# WeChat");
@@ -1487,17 +1515,19 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         const apiRecentDaysText = valueOf("apiHistoryRecentDays") || "3";
         const apiWeeklyDaysText = valueOf("apiHistoryWeeklyCompactAfterDays") || "7";
         const apiMonthlyDaysText = valueOf("apiHistoryMonthlyCompactAfterDays") || "30";
-        const apiSummaryCharsText = valueOf("apiHistorySummaryChars") || "1800";
+        const apiWeeklySummaryCharsText = valueOf("apiHistoryWeeklySummaryChars") || "1800";
+        const apiMonthlySummaryCharsText = valueOf("apiHistoryMonthlySummaryChars") || "1800";
         const apiRecentDays = Number.parseInt(apiRecentDaysText, 10);
         const apiWeeklyDays = Number.parseInt(apiWeeklyDaysText, 10);
         const apiMonthlyDays = Number.parseInt(apiMonthlyDaysText, 10);
         if (!/^[1-9]\d*$/u.test(apiRecentDaysText)
           || !/^[1-9]\d*$/u.test(apiWeeklyDaysText)
           || !/^[1-9]\d*$/u.test(apiMonthlyDaysText)
-          || !/^[1-9]\d*$/u.test(apiSummaryCharsText)
+          || !/^[1-9]\d*$/u.test(apiWeeklySummaryCharsText)
+          || !/^[1-9]\d*$/u.test(apiMonthlySummaryCharsText)
           || apiRecentDays >= apiWeeklyDays
           || apiWeeklyDays >= apiMonthlyDays) {
-          setStatus("envSaveStatus", "API 历史压缩天数需要递增：原文保留 < 周摘要起始 < 月摘要起始；摘要字符数需要是正整数。", "warning");
+          setStatus("envSaveStatus", "API 历史压缩天数需要递增：原文保留 < 周摘要起始 < 月摘要起始；周/月摘要字符数需要是正整数。", "warning");
           return;
         }
       }
@@ -1690,6 +1720,14 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         for (const [envKey, fieldId] of Object.entries(envFieldMap)) {
           if (!Object.prototype.hasOwnProperty.call(env, envKey)) continue;
           setFormFieldValue(fieldId, normalizeEnvValueForField(fieldId, env[envKey]));
+        }
+        if (env.ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS) {
+          if (!env.ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS) {
+            setFormFieldValue("apiHistoryWeeklySummaryChars", env.ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS);
+          }
+          if (!env.ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS) {
+            setFormFieldValue("apiHistoryMonthlySummaryChars", env.ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS);
+          }
         }
 
         if (!env.ST_CHARACTER_WECHAT_LOCAL_TIME_ZONE && env.ST_CHARACTER_WECHAT_USER_MEMORY_TIME_ZONE) {
@@ -1932,7 +1970,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
         "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
         "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS",
+        "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS",
+        "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_ENABLED",
         "ST_CHARACTER_WECHAT_MEMORY_RETRIEVAL_RERANK_ENABLED",
@@ -2009,7 +2049,9 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
         "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
         "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS",
+        "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS",
+        "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS",
         "ST_CHARACTER_WECHAT_WEIXIN_BASE_URL",
         "ST_CHARACTER_WECHAT_WEIXIN_CDN_BASE_URL",

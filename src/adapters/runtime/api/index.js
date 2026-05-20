@@ -398,9 +398,9 @@ function compactApiThreadByTime({ threadStore, threadId, config, now = new Date(
 
   const summaryMessages = []
     .concat(preservedSummaries.map(cloneMessage))
-    .concat(buildSummaryMessagesFromGroups(monthlyGroups, "长期 API 历史摘要", "monthly", policy.summaryChars))
-    .concat(buildSummaryMessagesFromGroups(weeklyGroups, "每周 API 历史摘要", "weekly", policy.summaryChars))
-    .concat(buildSummaryMessagesFromGroups(dailyGroups, "每日 API 历史摘要", "daily", policy.summaryChars));
+    .concat(buildSummaryMessagesFromGroups(monthlyGroups, "长期 API 历史摘要", "monthly", policy.monthlySummaryChars))
+    .concat(buildSummaryMessagesFromGroups(weeklyGroups, "每周 API 历史摘要", "weekly", policy.weeklySummaryChars))
+    .concat(buildSummaryMessagesFromGroups(dailyGroups, "每日 API 历史摘要", "daily", policy.weeklySummaryChars));
   const compactedMessages = summaryMessages.concat(recent.map(cloneMessage));
   const changed = force
     ? summaryMessages.length > preservedSummaries.length || regroupedSummaryCount > 0
@@ -452,7 +452,14 @@ function resolveApiTimeCompactPolicy(config = {}) {
     recentDays,
     weeklyAfterDays,
     monthlyAfterDays,
-    summaryChars: positiveInteger(config.apiHistorySummaryChars, DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS),
+    weeklySummaryChars: positiveInteger(
+      config.apiHistoryWeeklySummaryChars,
+      positiveInteger(config.apiHistorySummaryChars, DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS),
+    ),
+    monthlySummaryChars: positiveInteger(
+      config.apiHistoryMonthlySummaryChars,
+      positiveInteger(config.apiHistorySummaryChars, DEFAULT_API_TIME_COMPACT_SUMMARY_CHARS),
+    ),
   };
 }
 
