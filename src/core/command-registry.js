@@ -94,10 +94,25 @@ const COMMAND_GROUPS = [
         status: "active",
       },
       {
+        action: "report.daily_card",
+        summary: "Generate a daily summary long PNG from runtime JSON",
+        terminal: [],
+        weixin: ["/dailycard"],
+        status: "active",
+      },
+      {
+        action: "report.weekly_card",
+        summary: "Generate a weekly review long PNG from runtime JSON",
+        terminal: [],
+        weixin: ["/weeklycard"],
+        status: "active",
+      },
+      {
         action: "thread.reread",
         summary: "Disabled in character-only mode; character prompts are rebuilt per message",
         terminal: [],
         weixin: ["/reread"],
+        weixinHelp: false,
         status: "active",
       },
       {
@@ -105,6 +120,7 @@ const COMMAND_GROUPS = [
         summary: "Compact the active character thread context",
         terminal: [],
         weixin: ["/compact"],
+        weixinHelp: false,
         status: "active",
       },
       {
@@ -112,6 +128,7 @@ const COMMAND_GROUPS = [
         summary: "View or change automatic compact for the active character thread",
         terminal: [],
         weixin: ["/compact auto", "/compact auto on", "/compact auto off", "/compact auto <percent>"],
+        weixinHelp: false,
         status: "active",
       },
       {
@@ -119,6 +136,7 @@ const COMMAND_GROUPS = [
         summary: "Disabled in character-only mode; use /char use instead",
         terminal: [],
         weixin: ["/switch"],
+        weixinHelp: false,
         status: "active",
       },
       {
@@ -140,20 +158,6 @@ const COMMAND_GROUPS = [
         summary: "Adjust the minimum short-chunk merge size for WeChat replies",
         terminal: [],
         weixin: ["/chunk <number>"],
-        status: "active",
-      },
-      {
-        action: "report.daily_card",
-        summary: "Generate a daily summary long PNG from runtime JSON",
-        terminal: [],
-        weixin: ["/dailycard"],
-        status: "active",
-      },
-      {
-        action: "report.weekly_card",
-        summary: "Generate a weekly review long PNG from runtime JSON",
-        terminal: [],
-        weixin: ["/weeklycard"],
         status: "active",
       },
     ],
@@ -317,7 +321,11 @@ function buildTerminalHelpText() {
 function buildWeixinHelpText() {
   const lines = ["💡 Available commands:"];
   for (const group of COMMAND_GROUPS) {
-    const activeActions = group.actions.filter((action) => action.status === "active" && action.weixin.length);
+    const activeActions = group.actions.filter((action) => (
+      action.status === "active"
+      && action.weixin.length
+      && action.weixinHelp !== false
+    ));
     if (!activeActions.length) {
       continue;
     }

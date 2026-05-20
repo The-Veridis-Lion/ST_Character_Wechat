@@ -6,10 +6,11 @@ const STREAMING_REPLY_MIN_CHARS = 8;
 const STREAMING_REPLY_TARGET_CHARS = 220;
 
 class StreamDelivery {
-  constructor({ channelAdapter, sessionStore, onDeferredSystemReply, systemReplyRetryScheduleMs, sameTokenRetryDelayMs }) {
+  constructor({ channelAdapter, sessionStore, onDeferredSystemReply, onPlainReplyDelivered, systemReplyRetryScheduleMs, sameTokenRetryDelayMs }) {
     this.channelAdapter = channelAdapter;
     this.sessionStore = sessionStore;
     this.onDeferredSystemReply = typeof onDeferredSystemReply === "function" ? onDeferredSystemReply : null;
+    this.onPlainReplyDelivered = typeof onPlainReplyDelivered === "function" ? onPlainReplyDelivered : null;
     this.systemReplyRetryScheduleMs = Array.isArray(systemReplyRetryScheduleMs) && systemReplyRetryScheduleMs.length
       ? systemReplyRetryScheduleMs.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value >= 0)
       : [1_500, 2_500, 4_000, 6_000];
@@ -448,6 +449,13 @@ class StreamDelivery {
       payload.preserveBlock = true;
     }
     await this.sendTextWithRetry(state, payload, { kind: "plain_reply" });
+    if (this.onPlainReplyDelivered) {
+      Promise.resolve(this.onPlainReplyDelivered({
+        threadId: state.threadId,
+        turnId: state.turnId,
+        target: state.replyTarget,
+      })).catch(() => {});
+    }
   }
 
   async sendSystemReply(state, text) {

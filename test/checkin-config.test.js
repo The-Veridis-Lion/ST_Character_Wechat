@@ -332,6 +332,43 @@ test("scheduled weekly report respects selected weekday and skips once sent", ()
   }
 });
 
+test("scheduled reports use the configured local time zone", () => {
+  const baseConfig = {
+    autoDailyReportEnabled: true,
+    autoDailyReportTime: "23:30",
+    autoWeeklyReportEnabled: true,
+    autoWeeklyReportWeekday: "monday",
+    autoWeeklyReportTime: "23:30",
+    autoReportStateFile: "",
+  };
+  const now = new Date("2026-05-19T03:30:00.000Z");
+
+  const dailyDue = resolveScheduledReportDue({
+    now,
+    timeZone: "America/New_York",
+    reportKind: "daily",
+    config: baseConfig,
+    state: {},
+    accountId: "account-1",
+    senderId: "sender-1",
+  });
+  assert.equal(dailyDue.due, true);
+  assert.equal(dailyDue.mark.dateKey, "2026-05-18");
+  assert.equal(dailyDue.mark.periodKey, "2026-05-18");
+
+  const weeklyDue = resolveScheduledReportDue({
+    now,
+    timeZone: "America/New_York",
+    reportKind: "weekly",
+    config: baseConfig,
+    state: {},
+    accountId: "account-1",
+    senderId: "sender-1",
+  });
+  assert.equal(weeklyDue.due, true);
+  assert.equal(weeklyDue.mark.dateKey, "2026-05-18");
+});
+
 test("finalized manual report records the scheduled report period after the file is sent", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-manual-report-"));
   const stateFile = path.join(tempDir, "auto-report-cards.json");
@@ -465,6 +502,54 @@ test("proactive chat schedules after a user reply and stops at the pending limit
   }
 });
 
+test("slash commands do not reset the proactive chat timer", async () => {
+  const calls = [];
+  const appLike = {
+    channelAdapter: {
+      normalizeIncomingMessage(message) {
+        return message;
+      },
+    },
+    isSingleSenderAllowed() {
+      return true;
+    },
+    primeDeferredRepliesForSender() {
+      calls.push("prime");
+    },
+    noteProactiveChatUserMessage() {
+      calls.push("note");
+    },
+    async handlePreparedMessage(normalized, options) {
+      calls.push(["handle", normalized.text, options.allowCommands]);
+    },
+  };
+
+  await CharacterWechatApp.prototype.handleIncomingMessage.call(appLike, {
+    workspaceId: "default",
+    accountId: "account-1",
+    senderId: "sender-1",
+    contextToken: "ctx-1",
+    provider: "weixin",
+    text: "/help",
+  });
+  await CharacterWechatApp.prototype.handleIncomingMessage.call(appLike, {
+    workspaceId: "default",
+    accountId: "account-1",
+    senderId: "sender-1",
+    contextToken: "ctx-1",
+    provider: "weixin",
+    text: "今天好累",
+  });
+
+  assert.deepEqual(calls, [
+    "prime",
+    ["handle", "/help", true],
+    "prime",
+    "note",
+    ["handle", "今天好累", true],
+  ]);
+});
+
 test("proactive chat pending limit can be any number or unlimited", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-proactive-limit-"));
   const stateFile = path.join(tempDir, "proactive-chat.json");
@@ -511,6 +596,75 @@ test("proactive chat pending limit can be any number or unlimited", () => {
       characterId: "ciel",
       now: new Date("2026-05-19T10:03:00.000Z"),
     }), "2026-05-19T10:18:00.000Z");
+  } finally {
+    Math.random = originalRandom;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("proactive chat reschedules after proactive sends until the pending limit", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "st-proactive-reschedule-"));
+  const stateFile = path.join(tempDir, "proactive-chat.json");
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    const config = {
+      proactiveChatEnabled: true,
+      proactiveChatStartTime: "10:00",
+      proactiveChatEndTime: "23:30",
+      proactiveChatMinDelayMinutes: 15,
+      proactiveChatMaxDelayMinutes: 15,
+      proactiveChatPendingLimit: 2,
+      localTimeZone: "UTC",
+    };
+
+    markProactiveChatSent({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:00:00.000Z"),
+    });
+    assert.equal(scheduleNextProactiveChat({
+      filePath: stateFile,
+      config,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:00:00.000Z"),
+    }), "2026-05-19T10:15:00.000Z");
+
+    markProactiveChatSent({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:15:00.000Z"),
+    });
+    assert.equal(scheduleNextProactiveChat({
+      filePath: stateFile,
+      config,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:15:00.000Z"),
+    }), null);
+
+    markProactiveChatUserMessage({
+      filePath: stateFile,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:20:00.000Z"),
+    });
+    assert.equal(scheduleNextProactiveChat({
+      filePath: stateFile,
+      config,
+      accountId: "account-1",
+      senderId: "sender-1",
+      characterId: "ciel",
+      now: new Date("2026-05-19T10:20:00.000Z"),
+    }), "2026-05-19T10:35:00.000Z");
   } finally {
     Math.random = originalRandom;
     fs.rmSync(tempDir, { recursive: true, force: true });

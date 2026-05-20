@@ -54,6 +54,8 @@ test("install help text keeps reset and long-card commands but hides removed ali
   assert.match(helpText, /\/char reset/u);
   assert.match(helpText, /\/dailycard/u);
   assert.match(helpText, /\/weeklycard/u);
+  assert.doesNotMatch(helpText, /\/reread/u);
+  assert.doesNotMatch(helpText, /\/compact/u);
   assert.doesNotMatch(helpText, /(^|[\s,])\/new($|[\s,])/u);
   assert.doesNotMatch(helpText, /\/diarycard/u);
   assert.doesNotMatch(helpText, /\/userstatus|\/statuscard/u);

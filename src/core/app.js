@@ -49,6 +49,7 @@ const DEFAULT_INBOUND_IDLE_BATCH_WINDOW_MS = 15_000;
 const DEFAULT_INBOUND_IDLE_BATCH_MAX_MESSAGES = 4;
 const DEFAULT_TYPING_MIN_DELAY_MS = 5_000;
 const DEFAULT_TYPING_MAX_DELAY_MS = 10_000;
+const DEFAULT_TYPING_KEEPALIVE_MS = 7_000;
 const FIRST_RUNTIME_EVENT_NOTICE_TIMEOUT_MS = 8_000;
 const FIRST_RUNTIME_EVENT_FAILURE_TIMEOUT_MS = 45_000;
 const STREAMING_REPLY_RUNTIME_STALL_TIMEOUT_MS = 60_000;
@@ -101,10 +102,12 @@ class CharacterWechatApp {
     this.pendingProactiveChatByRunKey = new Map();
     this.turnBoundaryScopeKeys = new Set();
     this.systemMessageDispatcher = null;
+    this.typingKeepAliveByUserId = new Map();
     this.streamDelivery = new StreamDelivery({
       channelAdapter: this.channelAdapter,
       sessionStore: this.runtimeAdapter.getSessionStore(),
       onDeferredSystemReply: (payload) => this.deferSystemReply(payload),
+      onPlainReplyDelivered: ({ target }) => this.startTypingForTarget(target),
     });
     this.pendingRuntimeEventWatchdogs = new Map();
     this.pendingRuntimeStallWatchdogs = new Map();
@@ -190,6 +193,7 @@ class CharacterWechatApp {
     console.log("[st-character-wechat] bridge loop started; waiting for WeChat messages.");
 
     const shutdown = createShutdownController(async () => {
+      this.clearAllTypingKeepAlives();
       await this.closeLocationServer();
       await this.runtimeAdapter.close();
     });
@@ -245,6 +249,7 @@ class CharacterWechatApp {
       }
     } finally {
       shutdown.dispose();
+      this.clearAllTypingKeepAlives();
       await this.closeLocationServer();
       await this.runtimeAdapter.close();
     }
@@ -341,7 +346,9 @@ class CharacterWechatApp {
     }
 
     this.primeDeferredRepliesForSender(normalized);
-    this.noteProactiveChatUserMessage(normalized);
+    if (!parseChannelCommand(normalized.text)) {
+      this.noteProactiveChatUserMessage(normalized);
+    }
     await this.handlePreparedMessage(normalized, { allowCommands: true });
   }
 
@@ -709,11 +716,19 @@ class CharacterWechatApp {
         workspaceRoot,
         prepared,
       });
-      await this.channelAdapter.sendTyping({
-        userId: prepared.senderId,
-        status: 1,
-        contextToken: prepared.contextToken,
-      }).catch(() => {});
+      if (typeof this.startTypingForTarget === "function") {
+        this.startTypingForTarget({
+          userId: prepared.senderId,
+          contextToken: prepared.contextToken,
+          provider: prepared.provider,
+        });
+      } else {
+        await this.channelAdapter.sendTyping({
+          userId: prepared.senderId,
+          status: 1,
+          contextToken: prepared.contextToken,
+        }).catch(() => {});
+      }
       this.scheduleRuntimeEventWatchdog({
         bindingKey,
         workspaceRoot,
@@ -1154,11 +1169,19 @@ class CharacterWechatApp {
       if (!message?.senderId || normalizeText(message.provider).toLowerCase() === "system") {
         return;
       }
-      Promise.resolve(this.channelAdapter?.sendTyping?.({
-        userId: message.senderId,
-        status: 1,
-        contextToken: message.contextToken,
-      })).catch(() => {});
+      if (typeof this.startTypingForTarget === "function") {
+        this.startTypingForTarget({
+          userId: message.senderId,
+          contextToken: message.contextToken,
+          provider: message.provider,
+        });
+      } else {
+        Promise.resolve(this.channelAdapter?.sendTyping?.({
+          userId: message.senderId,
+          status: 1,
+          contextToken: message.contextToken,
+        })).catch(() => {});
+      }
     }, delayMs);
   }
 
@@ -3282,12 +3305,64 @@ class CharacterWechatApp {
     });
   }
 
+  startTypingForTarget(target = {}) {
+    const userId = normalizeCommandArgument(target?.userId);
+    const contextToken = normalizeCommandArgument(target?.contextToken);
+    if (!userId || !contextToken || normalizeText(target?.provider).toLowerCase() === "system") {
+      return;
+    }
+    if (!this.typingKeepAliveByUserId?.set) {
+      this.typingKeepAliveByUserId = new Map();
+    }
+    const sendTyping = () => Promise.resolve(this.channelAdapter?.sendTyping?.({
+      userId,
+      status: 1,
+      contextToken: normalizeCommandArgument(this.typingKeepAliveByUserId.get(userId)?.contextToken) || contextToken,
+    })).catch(() => {});
+    const current = this.typingKeepAliveByUserId.get(userId);
+    if (current?.timer) {
+      current.contextToken = contextToken;
+      void sendTyping();
+      return;
+    }
+    const entry = { contextToken, timer: null };
+    entry.timer = setInterval(sendTyping, DEFAULT_TYPING_KEEPALIVE_MS);
+    entry.timer.unref?.();
+    this.typingKeepAliveByUserId.set(userId, entry);
+    void sendTyping();
+  }
+
+  clearTypingKeepAliveForTarget(target = {}) {
+    const userId = normalizeCommandArgument(target?.userId);
+    if (!userId || !this.typingKeepAliveByUserId?.has?.(userId)) {
+      return;
+    }
+    const current = this.typingKeepAliveByUserId.get(userId);
+    if (current?.timer) {
+      clearInterval(current.timer);
+    }
+    this.typingKeepAliveByUserId.delete(userId);
+  }
+
+  clearAllTypingKeepAlives() {
+    if (!this.typingKeepAliveByUserId?.size) {
+      return;
+    }
+    for (const current of this.typingKeepAliveByUserId.values()) {
+      if (current?.timer) {
+        clearInterval(current.timer);
+      }
+    }
+    this.typingKeepAliveByUserId.clear();
+  }
+
   async stopTypingForThread(threadId) {
     const linked = this.runtimeAdapter.getSessionStore().findBindingForThreadId(threadId);
     const target = linked?.bindingKey ? this.resolveReplyTargetForBinding(linked.bindingKey) : null;
     if (!target) {
       return;
     }
+    this.clearTypingKeepAliveForTarget(target);
     await this.channelAdapter.sendTyping({
       userId: target.userId,
       status: 0,
