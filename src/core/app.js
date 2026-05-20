@@ -45,8 +45,10 @@ const SESSION_EXPIRED_ERRCODE = -14;
 const RETRY_DELAY_MS = 2_000;
 const BACKOFF_DELAY_MS = 30_000;
 const MAX_CONSECUTIVE_FAILURES = 3;
-const INBOUND_IDLE_BATCH_WINDOW_MS = 15_000;
-const INBOUND_IDLE_BATCH_MAX_MESSAGES = 4;
+const DEFAULT_INBOUND_IDLE_BATCH_WINDOW_MS = 15_000;
+const DEFAULT_INBOUND_IDLE_BATCH_MAX_MESSAGES = 4;
+const DEFAULT_TYPING_MIN_DELAY_MS = 5_000;
+const DEFAULT_TYPING_MAX_DELAY_MS = 10_000;
 const FIRST_RUNTIME_EVENT_NOTICE_TIMEOUT_MS = 8_000;
 const FIRST_RUNTIME_EVENT_FAILURE_TIMEOUT_MS = 45_000;
 const STREAMING_REPLY_RUNTIME_STALL_TIMEOUT_MS = 60_000;
@@ -947,6 +949,8 @@ class CharacterWechatApp {
       lastBufferedAtMs: 0,
       flushAtMs: 0,
       timer: null,
+      typingTimer: null,
+      typingSent: false,
     };
     current.bindingKey = bindingKey;
     current.workspaceRoot = workspaceRoot;
@@ -1072,8 +1076,11 @@ class CharacterWechatApp {
     }
 
     const now = Date.now();
-    draft.flushAtMs = now + INBOUND_IDLE_BATCH_WINDOW_MS;
-    if (Array.isArray(draft.messages) && draft.messages.length >= INBOUND_IDLE_BATCH_MAX_MESSAGES) {
+    const batchWindowMs = resolveInboundBatchWindowMs(this.config);
+    const batchMaxMessages = resolveInboundBatchMaxMessages(this.config);
+    draft.batchMaxMessages = batchMaxMessages;
+    draft.flushAtMs = now + batchWindowMs;
+    if (batchWindowMs <= 0 || (Array.isArray(draft.messages) && draft.messages.length >= batchMaxMessages)) {
       draft.flushAtMs = now;
       this.clearPendingInboundDraftTimer(scopeKey, draft);
       this.queuePendingInboundFlush({
@@ -1083,7 +1090,14 @@ class CharacterWechatApp {
       return;
     }
 
-    this.clearPendingInboundDraftTimer(scopeKey, draft);
+    if (typeof this.clearPendingInboundFlushTimer === "function") {
+      this.clearPendingInboundFlushTimer(scopeKey, draft);
+    } else {
+      this.clearPendingInboundDraftTimer(scopeKey, draft);
+    }
+    if (typeof this.schedulePendingInboundTyping === "function") {
+      this.schedulePendingInboundTyping(scopeKey, draft);
+    }
     draft.timer = setTimeout(() => {
       const latest = this.pendingInboundByScope.get(scopeKey);
       if (!latest?.bindingKey || !latest?.workspaceRoot) {
@@ -1094,7 +1108,7 @@ class CharacterWechatApp {
         bindingKey: latest.bindingKey,
         workspaceRoot: latest.workspaceRoot,
       });
-    }, INBOUND_IDLE_BATCH_WINDOW_MS);
+    }, batchWindowMs);
   }
 
   clearPendingInboundDraftTimer(scopeKey, draft = null) {
@@ -1102,9 +1116,50 @@ class CharacterWechatApp {
     if (current?.timer) {
       clearTimeout(current.timer);
     }
+    if (current?.typingTimer) {
+      clearTimeout(current.typingTimer);
+    }
+    if (current) {
+      current.timer = null;
+      current.typingTimer = null;
+    }
+  }
+
+  clearPendingInboundFlushTimer(scopeKey, draft = null) {
+    const current = draft || this.pendingInboundByScope.get(scopeKey) || null;
+    if (current?.timer) {
+      clearTimeout(current.timer);
+    }
     if (current) {
       current.timer = null;
     }
+  }
+
+  schedulePendingInboundTyping(scopeKey, draft) {
+    if (!scopeKey || !draft || draft.typingTimer || draft.typingSent) {
+      return;
+    }
+    const delayMs = resolveTypingDelayMs(this.config);
+    if (!Number.isFinite(delayMs) || delayMs < 0) {
+      return;
+    }
+    draft.typingTimer = setTimeout(() => {
+      const latest = this.pendingInboundByScope.get(scopeKey);
+      if (!latest?.bindingKey || !latest?.workspaceRoot || latest.typingSent) {
+        return;
+      }
+      latest.typingTimer = null;
+      latest.typingSent = true;
+      const message = getLatestPendingInboundMessage(latest);
+      if (!message?.senderId || normalizeText(message.provider).toLowerCase() === "system") {
+        return;
+      }
+      Promise.resolve(this.channelAdapter?.sendTyping?.({
+        userId: message.senderId,
+        status: 1,
+        contextToken: message.contextToken,
+      })).catch(() => {});
+    }, delayMs);
   }
 
   queuePendingInboundFlush({ bindingKey = "", workspaceRoot = "", ignoreBoundary = false } = {}) {
@@ -4016,11 +4071,52 @@ function isPendingInboundDraftDue(draft) {
     return true;
   }
   const messageCount = Array.isArray(draft?.messages) ? draft.messages.length : 0;
-  if (messageCount >= INBOUND_IDLE_BATCH_MAX_MESSAGES) {
+  const maxMessages = Number.isInteger(draft?.batchMaxMessages) && draft.batchMaxMessages > 0
+    ? draft.batchMaxMessages
+    : DEFAULT_INBOUND_IDLE_BATCH_MAX_MESSAGES;
+  if (messageCount >= maxMessages) {
     return true;
   }
   const flushAtMs = Number(draft?.flushAtMs);
   return Number.isFinite(flushAtMs) && flushAtMs > 0 && flushAtMs <= Date.now();
+}
+
+function resolveInboundBatchWindowMs(config = {}) {
+  const seconds = Number(config.inboundBatchWindowSeconds);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return DEFAULT_INBOUND_IDLE_BATCH_WINDOW_MS;
+  }
+  return Math.round(seconds * 1000);
+}
+
+function resolveInboundBatchMaxMessages(config = {}) {
+  const value = Number(config.inboundBatchMaxMessages);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_INBOUND_IDLE_BATCH_MAX_MESSAGES;
+}
+
+function resolveTypingDelayMs(config = {}) {
+  let minMs = secondsToMilliseconds(config.typingMinDelaySeconds, DEFAULT_TYPING_MIN_DELAY_MS);
+  let maxMs = secondsToMilliseconds(config.typingMaxDelaySeconds, DEFAULT_TYPING_MAX_DELAY_MS);
+  if (minMs > maxMs) {
+    [minMs, maxMs] = [maxMs, minMs];
+  }
+  if (maxMs <= 0) {
+    return 0;
+  }
+  return Math.round(minMs + Math.random() * (maxMs - minMs));
+}
+
+function secondsToMilliseconds(value, fallbackMs) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return fallbackMs;
+  }
+  return seconds * 1000;
+}
+
+function getLatestPendingInboundMessage(draft) {
+  const messages = Array.isArray(draft?.messages) ? draft.messages : [];
+  return messages[messages.length - 1] || null;
 }
 
 function normalizePendingInboundReason(value) {

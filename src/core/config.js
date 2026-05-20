@@ -38,6 +38,10 @@ function readConfig() {
     weixinConfigFile: path.join(stateDir, "weixin-config.json"),
     weixinMinChunkChars: readIntEnv("ST_CHARACTER_WECHAT_WEIXIN_MIN_CHUNK_CHARS"),
     weixinQrBotType: readTextEnv("ST_CHARACTER_WECHAT_WEIXIN_QR_BOT_TYPE") || "3",
+    inboundBatchWindowSeconds: resolveNonNegativeNumberEnv("ST_CHARACTER_WECHAT_INBOUND_BATCH_WINDOW_SECONDS", 15),
+    inboundBatchMaxMessages: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES", 4),
+    typingMinDelaySeconds: resolveNonNegativeNumberEnv("ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS", 5),
+    typingMaxDelaySeconds: resolveNonNegativeNumberEnv("ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS", 10),
     accountsDir: path.join(stateDir, "accounts"),
     reminderQueueFile: path.join(stateDir, "reminder-queue.json"),
     systemMessageQueueFile: path.join(stateDir, "system-message-queue.json"),
@@ -116,6 +120,7 @@ function readConfig() {
     apiKey: readTextEnv("ST_CHARACTER_WECHAT_API_KEY") || readTextEnv("OPENAI_API_KEY") || readTextEnv("DEEPSEEK_API_KEY") || apiDefaults.apiKey,
     apiModel: readTextEnv("ST_CHARACTER_WECHAT_API_MODEL") || readTextEnv("OPENAI_MODEL") || readTextEnv("DEEPSEEK_MODEL") || apiDefaults.model,
     apiHistoryLimit: readIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_LIMIT") || 80,
+    apiStreamingEnabled: readOptionalBoolEnv("ST_CHARACTER_WECHAT_API_STREAMING_ENABLED") !== false,
     apiThreadsFile: path.join(stateDir, "api-threads.json"),
     sessionsFile: path.join(stateDir, "sessions.json"),
   };
@@ -257,6 +262,14 @@ function resolveClockTimeEnv(name, fallback = "23:30") {
 function resolvePositiveIntEnv(name, fallback) {
   const value = readIntEnv(name);
   if (!Number.isInteger(value) || value <= 0) {
+    return fallback;
+  }
+  return value;
+}
+
+function resolveNonNegativeNumberEnv(name, fallback) {
+  const value = readNumberEnv(name);
+  if (!Number.isFinite(value) || value < 0) {
     return fallback;
   }
   return value;

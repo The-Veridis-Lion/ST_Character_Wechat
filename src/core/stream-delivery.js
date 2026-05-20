@@ -2,6 +2,8 @@ const { sanitizeProtocolLeakText } = require("../adapters/runtime/codex/protocol
 const { stripInternalReplyBlocks } = require("./reply-cleaning");
 
 const CURRENT_REPLY_HEADER = "===== 本轮模型回复 =====";
+const STREAMING_REPLY_MIN_CHARS = 8;
+const STREAMING_REPLY_TARGET_CHARS = 220;
 
 class StreamDelivery {
   constructor({ channelAdapter, sessionStore, onDeferredSystemReply, systemReplyRetryScheduleMs, sameTokenRetryDelayMs }) {
@@ -165,6 +167,7 @@ class StreamDelivery {
           text: normalizeLineEndings(event.payload.text),
           completed: false,
         });
+        await this.flush(state, { force: false, streaming: true });
         return;
       }
       case "runtime.reply.completed": {
@@ -274,6 +277,7 @@ class StreamDelivery {
         currentText: "",
         completedText: "",
         completed: false,
+        sentTextLength: 0,
       });
     }
 
@@ -298,6 +302,7 @@ class StreamDelivery {
         currentText: "",
         completedText: "",
         completed: false,
+        sentTextLength: 0,
       });
     }
 
@@ -309,11 +314,11 @@ class StreamDelivery {
     current.completed = Boolean(completed);
   }
 
-  async flush(state, { force }) {
+  async flush(state, { force, streaming = false }) {
     const previous = state.flushPromise || Promise.resolve();
     const current = previous
       .catch(() => {})
-      .then(() => this.flushNow(state, { force }));
+      .then(() => this.flushNow(state, { force, streaming }));
     const tracked = current.finally(() => {
       const latestState = this.stateByRunKey.get(state.runKey);
       if (latestState && latestState.flushPromise === tracked) {
@@ -324,7 +329,7 @@ class StreamDelivery {
     await tracked;
   }
 
-  async flushNow(state, { force }) {
+  async flushNow(state, { force, streaming = false }) {
     if (state.muted) {
       return;
     }
@@ -337,7 +342,7 @@ class StreamDelivery {
       return;
     }
 
-    const pendingDeliveries = collectPendingReplyDeliveries(state, { force });
+    const pendingDeliveries = collectPendingReplyDeliveries(state, { force, streaming });
     if (!pendingDeliveries.length) {
       return;
     }
@@ -348,7 +353,7 @@ class StreamDelivery {
         await this.sendReplyDelivery(state, delivery, {
           prependDeferredPrefix: index === 0 && Boolean(state.deferredReplyPrefix),
         });
-        state.sentItemIds.add(delivery.itemId);
+        this.markReplyDeliverySent(state, delivery);
         if (index === 0 && state.deferredReplyPrefix) {
           state.deferredReplyPrefix = "";
         }
@@ -361,6 +366,23 @@ class StreamDelivery {
     });
 
     await state.sendChain;
+  }
+
+  markReplyDeliverySent(state, delivery) {
+    const item = state.items.get(delivery.itemId);
+    if (!item) {
+      state.sentItemIds.add(delivery.itemId);
+      return;
+    }
+    if (Number.isFinite(delivery.sentTextEnd) && delivery.sentTextEnd > 0) {
+      item.sentTextLength = Math.max(Number(item.sentTextLength) || 0, delivery.sentTextEnd);
+      const fullText = getItemReplySourceText(item);
+      if (item.completed && item.sentTextLength >= fullText.length) {
+        state.sentItemIds.add(delivery.itemId);
+      }
+      return;
+    }
+    state.sentItemIds.add(delivery.itemId);
   }
 
   async flushSystemReply(state, { force }) {
@@ -633,7 +655,7 @@ function buildReplyText(state, { completedOnly }) {
   return parts.join("\n\n");
 }
 
-function collectPendingReplyDeliveries(state, { force }) {
+function collectPendingReplyDeliveries(state, { force, streaming = false }) {
   const pending = [];
   for (const itemId of state.itemOrder) {
     if (state.sentItemIds.has(itemId)) {
@@ -643,36 +665,194 @@ function collectPendingReplyDeliveries(state, { force }) {
     if (!item) {
       continue;
     }
-    const sourceText = resolvePlainReplySourceText(item, force);
-    if (!sourceText) {
+    const source = resolvePlainReplySourceText(item, { force, streaming });
+    if (!source?.text) {
       continue;
     }
-    const structuredAction = classifyReplyItemSourceText(sourceText);
+    const structuredAction = classifyReplyItemSourceText(source.text);
     if (structuredAction) {
-      pending.push(buildActionDelivery(itemId, sourceText, structuredAction));
+      pending.push({
+        ...buildActionDelivery(itemId, source.text, structuredAction),
+        sentTextEnd: source.end,
+      });
       continue;
     }
-    const plainText = markdownToPlainText(sourceText);
+    const plainText = markdownToPlainText(source.text);
     const sanitizedText = sanitizeReplyText(plainText);
     if (!sanitizedText) {
       continue;
     }
-    pending.push({ itemId, kind: "plain", text: sanitizedText });
+    pending.push({ itemId, kind: "plain", text: sanitizedText, sentTextEnd: source.end });
   }
   return pending;
 }
 
-function resolvePlainReplySourceText(item, force) {
+function resolvePlainReplySourceText(item, { force, streaming = false } = {}) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const fullText = getItemReplySourceText(item);
+  const sentTextLength = clampSentTextLength(item.sentTextLength, fullText.length);
+  if (sentTextLength >= fullText.length) {
+    return null;
+  }
+  if (item.completed || force) {
+    return {
+      text: trimOuterBlankLines(fullText.slice(sentTextLength)),
+      end: fullText.length,
+    };
+  }
+  if (!streaming || sentTextLength > 0 && looksLikeStructuredActionText(fullText)) {
+    return null;
+  }
+  if (sentTextLength === 0 && looksLikeStructuredActionText(fullText)) {
+    return null;
+  }
+  const boundary = findStreamingBubbleBoundary(fullText, sentTextLength);
+  if (boundary <= sentTextLength) {
+    return null;
+  }
+  return {
+    text: trimOuterBlankLines(fullText.slice(sentTextLength, boundary)),
+    end: boundary,
+  };
+}
+
+function getItemReplySourceText(item) {
   if (!item || typeof item !== "object") {
     return "";
   }
-  if (item.completed) {
-    return trimOuterBlankLines(item.completedText || item.currentText || "");
+  return item.completed
+    ? trimOuterBlankLines(item.completedText || item.currentText || "")
+    : trimOuterBlankLines(item.currentText || "");
+}
+
+function clampSentTextLength(value, maxLength) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return 0;
   }
-  if (!force) {
-    return "";
+  return Math.min(Math.floor(numeric), Math.max(0, maxLength));
+}
+
+function findStreamingBubbleBoundary(fullText, startIndex = 0) {
+  const text = normalizeLineEndings(fullText);
+  const safeStart = Math.max(0, Math.min(Number(startIndex) || 0, text.length));
+  const tail = text.slice(safeStart);
+  if (tail.length < STREAMING_REPLY_MIN_CHARS) {
+    return 0;
   }
-  return trimOuterBlankLines(item.currentText || "");
+
+  const strongBoundary = findLastNaturalBoundary(text, safeStart, { strongOnly: true });
+  if (strongBoundary > safeStart) {
+    const candidate = text.slice(safeStart, strongBoundary);
+    if (candidate.trim().length >= STREAMING_REPLY_MIN_CHARS || tail.length >= STREAMING_REPLY_TARGET_CHARS) {
+      return strongBoundary;
+    }
+  }
+
+  if (tail.length < STREAMING_REPLY_TARGET_CHARS) {
+    return 0;
+  }
+
+  const relaxedBoundary = findLastNaturalBoundary(text, safeStart, { strongOnly: false });
+  if (relaxedBoundary > safeStart) {
+    return relaxedBoundary;
+  }
+  return 0;
+}
+
+function findLastNaturalBoundary(text, startIndex, { strongOnly }) {
+  let best = 0;
+  for (let index = startIndex; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "\n") {
+      const next = text[index + 1] || "";
+      if (next === "\n" && isBalancedNaturalSlice(text.slice(startIndex, index + 1))) {
+        best = index + 1;
+      }
+      continue;
+    }
+    if (/[”"』」）)\]】》]/u.test(char)) {
+      const next = text[index + 1] || "";
+      const candidate = text.slice(startIndex, index + 1);
+      if ((!next || /\s/u.test(next)) && /[。！？!?.…]/u.test(candidate) && isBalancedNaturalSlice(candidate)) {
+        best = index + 1;
+      }
+      continue;
+    }
+    const boundary = resolveSentenceBoundaryEnd(text, index, { strongOnly });
+    if (boundary > 0 && isBalancedNaturalSlice(text.slice(startIndex, boundary))) {
+      best = boundary;
+    }
+  }
+  return best;
+}
+
+function resolveSentenceBoundaryEnd(text, index, { strongOnly }) {
+  const char = text[index];
+  const isStrong = /[。！？!?…]/u.test(char);
+  const isWeak = char === ".";
+  if (!isStrong && (!isWeak || strongOnly || isLikelyDecimalPoint(text, index))) {
+    return 0;
+  }
+
+  let end = index + 1;
+  while (end < text.length && /[”"』」）)\]】》]/u.test(text[end])) {
+    end += 1;
+  }
+  const next = text[end] || "";
+  if (next && !/[\s，,。！？!?…、；;：:）)\]】》”"』」]/u.test(next)) {
+    return 0;
+  }
+  return end;
+}
+
+function isLikelyDecimalPoint(text, index) {
+  return /\d/u.test(text[index - 1] || "") && /\d/u.test(text[index + 1] || "");
+}
+
+function isBalancedNaturalSlice(value) {
+  const text = String(value || "");
+  const stack = [];
+  const pairs = new Map([
+    ["(", ")"],
+    ["（", "）"],
+    ["[", "]"],
+    ["【", "】"],
+    ["《", "》"],
+  ]);
+  const closers = new Set([...pairs.values()]);
+  let asciiDoubleQuoteOpen = false;
+  let chineseDoubleQuoteOpen = false;
+  for (const char of text) {
+    if (pairs.has(char)) {
+      stack.push(pairs.get(char));
+      continue;
+    }
+    if (closers.has(char)) {
+      if (stack[stack.length - 1] === char) {
+        stack.pop();
+      }
+      continue;
+    }
+    if (char === "\"") {
+      asciiDoubleQuoteOpen = !asciiDoubleQuoteOpen;
+      continue;
+    }
+    if (char === "“" || char === "「" || char === "『") {
+      chineseDoubleQuoteOpen = true;
+      continue;
+    }
+    if (char === "”" || char === "」" || char === "』") {
+      chineseDoubleQuoteOpen = false;
+    }
+  }
+  return stack.length === 0 && !asciiDoubleQuoteOpen && !chineseDoubleQuoteOpen;
+}
+
+function looksLikeStructuredActionText(value) {
+  return /^[\s\r\n]*(?:\{|\[)/u.test(String(value || ""));
 }
 
 function buildEffectiveReplyText(deferredPrefix, replyText) {

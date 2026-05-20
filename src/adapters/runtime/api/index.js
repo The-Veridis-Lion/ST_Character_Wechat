@@ -28,6 +28,7 @@ function createApiRuntimeAdapter(config, options = {}) {
         kind: "runtime",
         endpoint: resolveApiBaseUrl(config) || "(unset)",
         model: resolveApiModel(config) || "(unset)",
+        streaming: config.apiStreamingEnabled !== false,
         sessionsFile: config.sessionsFile,
         threadsFile: config.apiThreadsFile,
       };
@@ -160,16 +161,36 @@ async function runApiTurn({
 
   try {
     const thread = threadStore.getThread(threadId);
-    const response = await callApiChatCompletions({
-      fetchImpl,
-      config,
-      model,
-      messages: thread?.messages || [],
-      signal: controller.signal,
-    });
-    const text = extractApiResponseText(response);
+    const itemId = `api-reply-${turnId}`;
+    const text = config.apiStreamingEnabled === false
+      ? extractApiResponseText(await callApiChatCompletions({
+          fetchImpl,
+          config,
+          model,
+          messages: thread?.messages || [],
+          signal: controller.signal,
+        }))
+      : await streamApiChatCompletions({
+          fetchImpl,
+          config,
+          model,
+          messages: thread?.messages || [],
+          signal: controller.signal,
+          onDelta(deltaText) {
+            emit({
+              type: "runtime.reply.delta",
+              payload: {
+                runtimeId,
+                threadId,
+                turnId,
+                itemId,
+                text: deltaText,
+              },
+            });
+          },
+        });
     if (!text) {
-      throw new Error(extractApiFailureText(response) || "API runtime returned no text.");
+      throw new Error("API runtime returned no text.");
     }
     threadStore.appendMessage(threadId, {
       role: "model",
@@ -181,7 +202,7 @@ async function runApiTurn({
         runtimeId,
         threadId,
         turnId,
-        itemId: `api-reply-${turnId}`,
+        itemId,
         text,
       },
     });
@@ -242,6 +263,78 @@ async function callApiChatCompletions({ fetchImpl, config, model, messages, sign
   return parsed || {};
 }
 
+async function streamApiChatCompletions({ fetchImpl, config, model, messages, signal, onDelta }) {
+  const endpoint = buildApiChatCompletionsUrl(resolveApiBaseUrl(config));
+  if (!endpoint) {
+    throw new Error("API runtime requires ST_CHARACTER_WECHAT_API_BASE_URL.");
+  }
+  const resolvedModel = normalizeText(model) || resolveApiModel(config);
+  if (!resolvedModel) {
+    throw new Error("API runtime requires ST_CHARACTER_WECHAT_API_MODEL.");
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  const apiKey = resolveApiKey(config);
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetchImpl(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: resolvedModel,
+      messages: messages.map((message) => ({
+        role: message.role === "model" ? "assistant" : "user",
+        content: String(message.text || ""),
+      })),
+      stream: true,
+    }),
+    signal,
+  });
+
+  const contentType = normalizeText(response.headers?.get?.("content-type")).toLowerCase();
+  if (!response.ok || !contentType.includes("text/event-stream") || !response.body) {
+    const bodyText = await response.text();
+    const parsed = tryParseJson(bodyText);
+    if (!response.ok) {
+      const message = normalizeText(parsed?.error?.message) || normalizeText(bodyText) || `HTTP ${response.status}`;
+      throw new Error(`API runtime request failed: ${message}`);
+    }
+    return extractApiResponseText(parsed) || "";
+  }
+
+  let completedText = "";
+  for await (const event of readServerSentEvents(response.body)) {
+    const data = normalizeText(event.data);
+    if (!data || data === "[DONE]") {
+      if (data === "[DONE]") {
+        break;
+      }
+      continue;
+    }
+    const parsed = tryParseJson(data);
+    if (!parsed) {
+      continue;
+    }
+    const errorMessage = normalizeText(parsed?.error?.message);
+    if (errorMessage) {
+      throw new Error(`API runtime request failed: ${errorMessage}`);
+    }
+    const deltaText = extractApiDeltaText(parsed);
+    if (!deltaText) {
+      continue;
+    }
+    completedText += deltaText;
+    if (typeof onDelta === "function") {
+      onDelta(deltaText);
+    }
+  }
+  return normalizeText(completedText);
+}
+
 function buildApiChatCompletionsUrl(baseUrl) {
   const trimmedBase = normalizeText(baseUrl).replace(/\/+$/g, "");
   if (!trimmedBase) {
@@ -267,6 +360,56 @@ function extractApiResponseText(response) {
       .trim();
   }
   return "";
+}
+
+function extractApiDeltaText(response) {
+  const choice = Array.isArray(response?.choices) ? response.choices[0] : null;
+  const content = choice?.delta?.content ?? choice?.message?.content ?? response?.output_text;
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => normalizeText(part?.text || part?.content))
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+async function* readServerSentEvents(body) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for await (const chunk of body) {
+    buffer += decoder.decode(chunk, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const rawEvent = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const event = parseServerSentEvent(rawEvent);
+      if (event) {
+        yield event;
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const event = parseServerSentEvent(buffer);
+    if (event) {
+      yield event;
+    }
+  }
+}
+
+function parseServerSentEvent(rawEvent) {
+  const data = String(rawEvent || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\n");
+  return data ? { data } : null;
 }
 
 function extractApiFailureText(response) {

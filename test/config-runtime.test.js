@@ -14,6 +14,11 @@ const RUNTIME_KEYS = [
   "DEEPSEEK_BASE_URL",
   "DEEPSEEK_API_KEY",
   "DEEPSEEK_MODEL",
+  "ST_CHARACTER_WECHAT_INBOUND_BATCH_WINDOW_SECONDS",
+  "ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES",
+  "ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS",
+  "ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS",
+  "ST_CHARACTER_WECHAT_API_STREAMING_ENABLED",
 ];
 
 test("readConfig defaults to codex when no runtime or API config is present", () => {
@@ -38,6 +43,23 @@ test("readConfig respects an explicit runtime even when API config exists", () =
     ST_CHARACTER_WECHAT_API_KEY: "test-key",
   }, () => {
     assert.equal(readConfig().runtime, "codex");
+  });
+});
+
+test("readConfig reads message pacing and API streaming options", () => {
+  withRuntimeEnv({
+    ST_CHARACTER_WECHAT_INBOUND_BATCH_WINDOW_SECONDS: "6",
+    ST_CHARACTER_WECHAT_INBOUND_BATCH_MAX_MESSAGES: "3",
+    ST_CHARACTER_WECHAT_TYPING_MIN_DELAY_SECONDS: "2",
+    ST_CHARACTER_WECHAT_TYPING_MAX_DELAY_SECONDS: "9",
+    ST_CHARACTER_WECHAT_API_STREAMING_ENABLED: "false",
+  }, () => {
+    const config = readConfig();
+    assert.equal(config.inboundBatchWindowSeconds, 6);
+    assert.equal(config.inboundBatchMaxMessages, 3);
+    assert.equal(config.typingMinDelaySeconds, 2);
+    assert.equal(config.typingMaxDelaySeconds, 9);
+    assert.equal(config.apiStreamingEnabled, false);
   });
 });
 

@@ -338,6 +338,109 @@ test("plain weixin reply sends finalized item text even if earlier streaming tex
   });
 });
 
+test("plain weixin reply streams complete natural bubbles without waiting for turn completion", async () => {
+  const { sent, streamDelivery } = createHarness();
+  streamDelivery.queueReplyTargetForThread("thread-stream", {
+    userId: "user-stream",
+    contextToken: "ctx-stream",
+    provider: "weixin",
+  });
+
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.turn.started",
+    payload: { threadId: "thread-stream", turnId: "turn-stream" },
+  });
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.delta",
+    payload: {
+      threadId: "thread-stream",
+      turnId: "turn-stream",
+      itemId: "item-stream",
+      text: "先把水喝完，再去洗澡。",
+    },
+  });
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].text, "先把水喝完，再去洗澡。");
+
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.delta",
+    payload: {
+      threadId: "thread-stream",
+      turnId: "turn-stream",
+      itemId: "item-stream",
+      text: "然后告诉我你有没有好一点。",
+    },
+  });
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.completed",
+    payload: {
+      threadId: "thread-stream",
+      turnId: "turn-stream",
+      itemId: "item-stream",
+      text: "先把水喝完，再去洗澡。然后告诉我你有没有好一点。",
+    },
+  });
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.turn.completed",
+    payload: { threadId: "thread-stream", turnId: "turn-stream" },
+  });
+
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].text, "然后告诉我你有没有好一点。");
+});
+
+test("plain weixin reply keeps a quoted bilingual sentence together while streaming", async () => {
+  const { sent, streamDelivery } = createHarness();
+  streamDelivery.queueReplyTargetForThread("thread-quote", {
+    userId: "user-quote",
+    contextToken: "ctx-quote",
+    provider: "weixin",
+  });
+  const text = "\"Just remember that human nature is rarely as tidy as our theories. Still, it is a brilliant thought experiment. (只需记住，人性很少能像我们的理论那样干净利落。尽管如此，这依然是一个精彩的思想实验)\"";
+
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.turn.started",
+    payload: { threadId: "thread-quote", turnId: "turn-quote" },
+  });
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.delta",
+    payload: {
+      threadId: "thread-quote",
+      turnId: "turn-quote",
+      itemId: "item-quote",
+      text: text.slice(0, -1),
+    },
+  });
+
+  assert.equal(sent.length, 0);
+
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.delta",
+    payload: {
+      threadId: "thread-quote",
+      turnId: "turn-quote",
+      itemId: "item-quote",
+      text: "\"",
+    },
+  });
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].text, text);
+
+  await streamDelivery.handleRuntimeEvent({
+    type: "runtime.reply.completed",
+    payload: {
+      threadId: "thread-quote",
+      turnId: "turn-quote",
+      itemId: "item-quote",
+      text,
+    },
+  });
+
+  assert.equal(sent.length, 1);
+});
+
 test("system send_message retries with the latest context token on ret=-2", async () => {
   const attempts = [];
   const { sent, streamDelivery } = createHarness({
