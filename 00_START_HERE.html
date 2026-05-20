@@ -649,6 +649,10 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       <h2>本地设置</h2>
       <p>这里配置角色对你的称呼、你的代词、允许聊天的微信发送者、当地时间、每日提醒和自动日记/周记。模型、API 和长期记忆检索请到“模型 / API”页设置。</p>
       <p>这里改完不用单独保存。确认本地设置后，去“模型 / API”页完成模型配置，并在那里一次写入项目根目录的 <code>.env</code>。</p>
+      <div class="actions">
+        <button class="button blue load-env-button">读取现有 .env</button>
+      </div>
+      <p class="status" data-status-id="envSaveStatus" aria-live="polite"></p>
 
       <div class="field-section model-section">
         <h3>聊天身份</h3>
@@ -848,6 +852,10 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
     <section id="api-config" class="panel">
       <h2>模型设置</h2>
       <p>聊天模型和记忆检索模型是两组配置，但会一次保存到同一个本地 <code>.env</code>。切换模型或 API 不会清空角色卡、聊天记忆或微信发送者 ID；密钥只写入本地 <code>.env</code>，不要提交到 GitHub。</p>
+      <div class="actions">
+        <button class="button blue load-env-button">读取现有 .env</button>
+      </div>
+      <p class="status" data-status-id="envSaveStatus" aria-live="polite"></p>
 
       <div class="field-section model-section">
         <h3>聊天模型</h3>
@@ -956,7 +964,7 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
         <p class="status section-note">本地设置、聊天模型和记忆检索模型会一次写入同一个项目根目录 <code>.env</code>。通过 <code>npm run manual</code> 打开本页时会直接写入，不会生成 <code>env.env</code>；如果直接双击 HTML，浏览器会要求选择项目根目录。</p>
         <textarea id="envOutput" readonly spellcheck="false" placeholder="确认本地设置和模型 / API 后，这里会生成最终 .env 内容。"></textarea>
         <div class="actions">
-          <button id="loadEnvButton" class="button blue">读取现有 .env</button>
+          <button class="button blue load-env-button">读取现有 .env</button>
           <button class="button primary" data-copy-target="envOutput">复制 .env</button>
           <button class="button save-env-button">保存本地 .env</button>
         </div>
@@ -1283,13 +1291,15 @@ ST_CHARACTER_WECHAT_RUNTIME=claudecode
       }
       document.getElementById("fetchApiModelsButton").addEventListener("click", fetchApiModels);
       document.getElementById("fetchMemoryModelsButton").addEventListener("click", fetchMemoryModels);
-      document.getElementById("loadEnvButton").addEventListener("click", () => {
-        if (/^https?:$/i.test(location.protocol)) {
-          void loadExistingEnvIntoForm({ userInitiated: true });
-          return;
-        }
-        document.getElementById("envFileInput").click();
-      });
+      for (const button of document.querySelectorAll(".load-env-button")) {
+        button.addEventListener("click", () => {
+          if (/^https?:$/i.test(location.protocol)) {
+            void loadExistingEnvIntoForm({ userInitiated: true });
+            return;
+          }
+          document.getElementById("envFileInput").click();
+        });
+      }
       document.getElementById("envFileInput").addEventListener("change", loadPickedEnvFile);
     }
 
