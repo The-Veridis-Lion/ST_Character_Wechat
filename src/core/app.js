@@ -3711,10 +3711,10 @@ function formatContextStatusLine({ runtimeName, context, contextStats, claudeCon
 }
 
 function formatApiHistoryContextStatusLine(stats = {}) {
-  const totalChars = Math.max(0, Number(stats.totalChars) || 0);
+  const estimatedTokens = Math.max(0, Number(stats.estimatedTokens) || 0);
   const messageCount = Math.max(0, Number(stats.messageCount) || 0);
   const parts = [
-    `📦 context: API local history ${formatCompactNumber(totalChars)} chars`,
+    `📦 context: API request ${formatCompactNumber(estimatedTokens)} token`,
     `${formatCompactNumber(messageCount)} messages`,
   ];
   const summaryMessages = Math.max(0, Number(stats.summaryMessages) || 0);

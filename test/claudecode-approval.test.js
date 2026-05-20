@@ -1357,7 +1357,8 @@ test("handleStatusCommand shows API local history character stats", async () => 
         assert.equal(threadId, "thread-api");
         return {
           kind: "api_history",
-          totalChars: 12345,
+          requestChars: 12345,
+          estimatedTokens: 5432,
           messageCount: 40,
           summaryMessages: 2,
         };
@@ -1401,6 +1402,6 @@ test("handleStatusCommand shows API local history character stats", async () => 
     contextToken: "ctx-1",
   });
 
-  assert.match(sent[0], /📦 context: API local history 12\.3k chars \/ 40 messages \/ 2 summaries/);
+  assert.match(sent[0], /📦 context: API request 5\.4k token \/ 40 messages \/ 2 summaries/);
   assert.doesNotMatch(sent[0], /left/);
 });

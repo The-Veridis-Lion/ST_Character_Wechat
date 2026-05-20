@@ -184,7 +184,8 @@ test("API thread store reports local history character stats", () => {
   assert.equal(stats.assistantChars, 5);
   assert.equal(stats.summaryMessages, 1);
   assert.equal(stats.summaryChars, 44);
-  assert.equal(stats.totalChars, 51);
+  assert.equal(stats.requestChars, 51);
+  assert.equal(stats.estimatedTokens, 16);
 });
 
 test("API runtime emits streaming delta events from SSE responses", async () => {

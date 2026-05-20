@@ -126,7 +126,7 @@ Notes:
 
 - `/status` covers the active character thread, workspace, model, and context details
 - there is no separate `/context` command; use `/status` and read the `📦 context` line
-- API runtime status reports local history character count and message count instead of token-window remaining percentage
+- API runtime status reports token and message count for the next local API request instead of token-window remaining percentage
 - `/new` is the same as `/char reset`; it resets the active character's isolated thread
 - `/compact` asks the active character thread to compact its context and reports start / finish back to WeChat
 - `/compact auto` shows or changes silent automatic compact for the active character thread; it defaults to `75%` used context

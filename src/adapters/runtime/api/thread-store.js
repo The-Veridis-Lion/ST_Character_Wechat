@@ -75,23 +75,28 @@ class ApiThreadStore {
     if (!thread) {
       return null;
     }
+    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+    const latestUserIndex = findLatestApiUserMessageIndex(messages);
     const stats = {
       messageCount: 0,
-      totalChars: 0,
+      requestChars: 0,
+      estimatedTokens: 0,
       userChars: 0,
       assistantChars: 0,
       systemChars: 0,
       summaryChars: 0,
       summaryMessages: 0,
     };
-    for (const message of thread.messages || []) {
-      const text = normalizeText(message?.text);
+    for (let index = 0; index < messages.length; index += 1) {
+      const message = messages[index];
+      const text = resolveApiRequestTextForStats(message, index, latestUserIndex);
       if (!text) {
         continue;
       }
       const charCount = countCharacters(text);
       stats.messageCount += 1;
-      stats.totalChars += charCount;
+      stats.requestChars += charCount;
+      stats.estimatedTokens += estimateTokenCount(text);
       if (isStoredApiHistorySummary(message)) {
         stats.summaryMessages += 1;
         stats.summaryChars += charCount;
@@ -104,6 +109,7 @@ class ApiThreadStore {
         stats.systemChars += charCount;
       }
     }
+    stats.estimatedTokens = Math.round(stats.estimatedTokens);
     return stats;
   }
 
@@ -231,6 +237,47 @@ function normalizeAssistantHistoryText(value) {
 
 function isStoredApiHistorySummary(message) {
   return Boolean(message?.compacted) || normalizeText(message?.text).startsWith("[ST Character WeChat API history summary]");
+}
+
+function findLatestApiUserMessageIndex(messages = []) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!isStoredApiHistorySummary(message) && message?.role === "user") {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function resolveApiRequestTextForStats(message, index, latestUserIndex) {
+  const text = normalizeText(message?.text);
+  if (!text) {
+    return "";
+  }
+  if (isStoredApiHistorySummary(message) || index === latestUserIndex) {
+    return text;
+  }
+  return extractApiConversationText(text) || text;
+}
+
+function extractApiConversationText(text) {
+  const normalized = String(text || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized) {
+    return "";
+  }
+  const userMessageMatch = normalized.match(/(?:^|\n)## User Message\s*\n([\s\S]*?)\s*$/u);
+  if (userMessageMatch) {
+    return userMessageMatch[1].trim();
+  }
+  return normalized;
+}
+
+function estimateTokenCount(text) {
+  const value = String(text || "");
+  const cjkChars = Array.from(value.matchAll(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)).length;
+  const totalChars = countCharacters(value);
+  const nonCjkChars = Math.max(0, totalChars - cjkChars);
+  return cjkChars + nonCjkChars / 4;
 }
 
 function countCharacters(value) {
