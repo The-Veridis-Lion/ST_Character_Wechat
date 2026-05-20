@@ -173,11 +173,10 @@ class UserMemoryService {
       .map((date) => this.readDayRecord({ senderId: normalizedSenderId, characterId: normalizedCharacterId, date }))
       .filter(Boolean);
     const recentRecords = records.filter((record) => recentDates.includes(record.date));
-    const upcomingEvents = records
-      .flatMap((record) => Array.isArray(record.plannedEvents) ? record.plannedEvents : [])
-      .filter((event) => event.date && upcomingDates.includes(event.date) && !event.sourceOnly)
-      .sort(comparePlannedEvents)
-      .slice(0, 12);
+    const upcomingEvents = this.collectSharedUpcomingEvents({
+      senderId: normalizedSenderId,
+      dates: upcomingDates,
+    });
     const todayRecord = records.find((record) => record.date === today) || null;
 
     return {
@@ -193,6 +192,53 @@ class UserMemoryService {
       upcomingEvents,
       text: formatRecallText({ today, todayRecord, recentRecords, upcomingEvents }),
     };
+  }
+
+  collectSharedUpcomingEvents({ senderId = "", dates = [] } = {}) {
+    const normalizedSenderId = normalizeText(senderId);
+    const dateSet = new Set((Array.isArray(dates) ? dates : []).map(normalizeDateText).filter(Boolean));
+    if (!normalizedSenderId || !dateSet.size) {
+      return [];
+    }
+
+    const senderDir = path.join(this.baseDir, "senders", stableKey(normalizedSenderId), "characters");
+    if (!fs.existsSync(senderDir)) {
+      return [];
+    }
+
+    const events = [];
+    for (const characterKey of fs.readdirSync(senderDir).sort((left, right) => left.localeCompare(right))) {
+      const characterDir = path.join(senderDir, characterKey);
+      let stats = null;
+      try {
+        stats = fs.statSync(characterDir);
+      } catch {
+        stats = null;
+      }
+      if (!stats?.isDirectory()) {
+        continue;
+      }
+      for (const date of dateSet) {
+        const record = readDayRecordFile(path.join(characterDir, `${date}.json`));
+        if (!record) {
+          continue;
+        }
+        for (const event of Array.isArray(record.plannedEvents) ? record.plannedEvents : []) {
+          if (!event?.date || !dateSet.has(event.date) || event.sourceOnly) {
+            continue;
+          }
+          events.push({
+            ...event,
+            sourceCharacterId: record.characterId,
+            sourceCharacterName: record.characterName,
+          });
+        }
+      }
+    }
+
+    return dedupePlannedEvents(events)
+      .sort(comparePlannedEvents)
+      .slice(0, 12);
   }
 
   buildReportContext({
@@ -443,13 +489,7 @@ class UserMemoryService {
     return fs.readdirSync(dir)
       .filter((fileName) => /^\d{4}-\d{2}-\d{2}\.json$/u.test(fileName))
       .sort((left, right) => left.localeCompare(right))
-      .map((fileName) => {
-        try {
-          return normalizeDayRecord(JSON.parse(fs.readFileSync(path.join(dir, fileName), "utf8")));
-        } catch {
-          return null;
-        }
-      })
+      .map((fileName) => readDayRecordFile(path.join(dir, fileName)))
       .filter(Boolean);
   }
 
@@ -1042,6 +1082,14 @@ function compactRecordForReport(record) {
   };
 }
 
+function readDayRecordFile(filePath = "") {
+  try {
+    return normalizeDayRecord(JSON.parse(fs.readFileSync(filePath, "utf8")));
+  } catch {
+    return null;
+  }
+}
+
 function normalizeDayRecord(value) {
   const record = value && typeof value === "object" ? value : {};
   return {
@@ -1069,6 +1117,33 @@ function comparePlannedEvents(left, right) {
   const leftKey = `${left.date || ""} ${left.time || ""}`;
   const rightKey = `${right.date || ""} ${right.time || ""}`;
   return leftKey.localeCompare(rightKey);
+}
+
+function dedupePlannedEvents(events = []) {
+  const seen = new Set();
+  const output = [];
+  for (const event of Array.isArray(events) ? events : []) {
+    const date = normalizeDateText(event?.date);
+    const label = normalizeText(event?.label || event?.text);
+    if (!date || !label) {
+      continue;
+    }
+    const key = [
+      date,
+      normalizeText(event?.time),
+      label.replace(/\s+/gu, " ").toLowerCase(),
+    ].join("|");
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push({
+      ...event,
+      date,
+      label,
+    });
+  }
+  return output;
 }
 
 function upsertById(items, item) {

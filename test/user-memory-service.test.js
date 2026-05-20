@@ -61,7 +61,7 @@ test("user memory stores future dated plans on the target day and recalls them l
   assert.match(recall.text, /体检/);
 });
 
-test("user memory keeps character recall scoped to the active character", () => {
+test("user memory keeps status scoped while sharing upcoming plans across characters", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-user-memory-scope-"));
   const service = new UserMemoryService({
     config: {
@@ -73,7 +73,7 @@ test("user memory keeps character recall scoped to the active character", () => 
   service.appendTurn({
     senderId: "sender",
     characterId: "ciel",
-    userText: "明天下午2点要开会。",
+    userText: "今天压力很大。明天下午2点要开会。",
     receivedAt: "2026-05-18T05:00:00.000Z",
   });
   const otherRecall = service.buildRecallContext({
@@ -82,7 +82,9 @@ test("user memory keeps character recall scoped to the active character", () => 
     now: new Date("2026-05-19T01:00:00.000Z"),
   });
 
-  assert.equal(otherRecall.text, "");
+  assert.match(otherRecall.text, /2026-05-19 14:00/);
+  assert.match(otherRecall.text, /开会/);
+  assert.doesNotMatch(otherRecall.text, /压力很大/);
 });
 
 test("semantic user memory can retrieve older memories outside the text date window", async (t) => {
