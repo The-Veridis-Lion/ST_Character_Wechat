@@ -125,18 +125,9 @@ function readConfig() {
     apiHistoryLimit: readIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_LIMIT") || 80,
     apiStreamingEnabled: readOptionalBoolEnv("ST_CHARACTER_WECHAT_API_STREAMING_ENABLED") !== false,
     apiTimeCompactionEnabled: readOptionalBoolEnv("ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED") !== false,
-    apiHistoryRecentDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS", 3),
-    apiHistoryWeeklyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS", 7),
-    apiHistoryMonthlyCompactAfterDays: resolvePositiveNumberEnv("ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS", 30),
-    apiHistorySummaryChars: resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
-    apiHistoryWeeklySummaryChars: resolvePositiveIntEnv(
-      "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS",
-      resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
-    ),
-    apiHistoryMonthlySummaryChars: resolvePositiveIntEnv(
-      "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS",
-      resolvePositiveIntEnv("ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS", 1800),
-    ),
+    apiHistoryRecentDays: 3,
+    apiHistoryWeeklyCompactAfterDays: 7,
+    apiHistoryMonthlyCompactAfterDays: 30,
     apiThreadsFile: path.join(stateDir, "api-threads.json"),
     sessionsFile: path.join(stateDir, "sessions.json"),
   };

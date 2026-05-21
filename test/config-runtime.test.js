@@ -23,12 +23,6 @@ const RUNTIME_KEYS = [
   "ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND",
   "ST_CHARACTER_WECHAT_API_STREAMING_ENABLED",
   "ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED",
-  "ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS",
-  "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS",
-  "ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS",
-  "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS",
-  "ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS",
-  "ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS",
 ];
 
 test("readConfig defaults to codex when no runtime or API config is present", () => {
@@ -67,11 +61,6 @@ test("readConfig reads message pacing and API streaming options", () => {
     ST_CHARACTER_WECHAT_REPLY_BUBBLE_CHARS_PER_SECOND: "12",
     ST_CHARACTER_WECHAT_API_STREAMING_ENABLED: "false",
     ST_CHARACTER_WECHAT_API_TIME_COMPACTION_ENABLED: "false",
-    ST_CHARACTER_WECHAT_API_HISTORY_RECENT_DAYS: "5",
-    ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_COMPACT_AFTER_DAYS: "12",
-    ST_CHARACTER_WECHAT_API_HISTORY_WEEKLY_SUMMARY_CHARS: "700",
-    ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_COMPACT_AFTER_DAYS: "40",
-    ST_CHARACTER_WECHAT_API_HISTORY_MONTHLY_SUMMARY_CHARS: "1200",
   }, () => {
     const config = readConfig();
     assert.equal(config.inboundBatchWindowSeconds, 6);
@@ -83,22 +72,9 @@ test("readConfig reads message pacing and API streaming options", () => {
     assert.equal(config.replyBubbleCharsPerSecond, 12);
     assert.equal(config.apiStreamingEnabled, false);
     assert.equal(config.apiTimeCompactionEnabled, false);
-    assert.equal(config.apiHistoryRecentDays, 5);
-    assert.equal(config.apiHistoryWeeklyCompactAfterDays, 12);
-    assert.equal(config.apiHistoryMonthlyCompactAfterDays, 40);
-    assert.equal(config.apiHistoryWeeklySummaryChars, 700);
-    assert.equal(config.apiHistoryMonthlySummaryChars, 1200);
-  });
-});
-
-test("readConfig uses legacy API summary chars for split summary defaults", () => {
-  withRuntimeEnv({
-    ST_CHARACTER_WECHAT_API_HISTORY_SUMMARY_CHARS: "900",
-  }, () => {
-    const config = readConfig();
-    assert.equal(config.apiHistorySummaryChars, 900);
-    assert.equal(config.apiHistoryWeeklySummaryChars, 900);
-    assert.equal(config.apiHistoryMonthlySummaryChars, 900);
+    assert.equal(config.apiHistoryRecentDays, 3);
+    assert.equal(config.apiHistoryWeeklyCompactAfterDays, 7);
+    assert.equal(config.apiHistoryMonthlyCompactAfterDays, 30);
   });
 });
 

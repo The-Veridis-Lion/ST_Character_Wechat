@@ -137,7 +137,7 @@ class ApiThreadStore {
       text: normalizedText,
       createdAt: normalizeText(createdAt) || new Date().toISOString(),
     });
-    current.messages = messages.slice(Math.max(0, messages.length - this.maxMessages));
+    current.messages = trimMessagesForLimit(messages, this.maxMessages);
     current.updatedAt = new Date().toISOString();
     this.state.threads[normalizedThreadId] = current;
     this.save();
@@ -153,7 +153,7 @@ class ApiThreadStore {
       ? messages.map(normalizeStoredMessage).filter(Boolean)
       : [];
     const current = this.state.threads[normalizedThreadId];
-    current.messages = normalizedMessages.slice(Math.max(0, normalizedMessages.length - this.maxMessages));
+    current.messages = trimMessagesForLimit(normalizedMessages, this.maxMessages);
     current.updatedAt = new Date().toISOString();
     this.state.threads[normalizedThreadId] = current;
     this.save();
@@ -237,6 +237,20 @@ function normalizeAssistantHistoryText(value) {
 
 function isStoredApiHistorySummary(message) {
   return Boolean(message?.compacted) || normalizeText(message?.text).startsWith("[ST Character WeChat API history summary]");
+}
+
+function trimMessagesForLimit(messages = [], maxMessages = 80) {
+  const limit = normalizePositiveInteger(maxMessages) || 80;
+  const result = Array.isArray(messages) ? messages.slice() : [];
+  while (result.length > limit) {
+    const firstNonSummaryIndex = result.findIndex((message) => !isStoredApiHistorySummary(message));
+    if (firstNonSummaryIndex >= 0) {
+      result.splice(firstNonSummaryIndex, 1);
+    } else {
+      result.shift();
+    }
+  }
+  return result;
 }
 
 function findLatestApiUserMessageIndex(messages = []) {

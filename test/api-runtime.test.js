@@ -252,7 +252,6 @@ test("API runtime compacts older local history into plain text summaries", async
     apiHistoryWeeklyCompactAfterDays: 7,
     apiHistoryMonthlyCompactAfterDays: 30,
     apiHistoryWeeklySummaryChars: 500,
-    apiHistoryMonthlySummaryChars: 900,
   };
   const runtimeOptions = {
     fetch: async (url, init) => {
@@ -295,10 +294,78 @@ test("API runtime compacts older local history into plain text summaries", async
   await waitFor(() => events.filter((event) => event.type === "runtime.turn.completed").length >= 2);
 
   const latestMessages = calls.at(-1).messages;
-  assert.ok(latestMessages.some((message) => /每周 API 历史摘要/u.test(message.content)));
+  assert.ok(latestMessages.some((message) => /月第\d+周总结：/u.test(message.content)));
   assert.ok(latestMessages.some((message) => /用户: old hello/u.test(message.content)));
   assert.ok(latestMessages.some((message) => /角色: reply-1/u.test(message.content)));
   assert.ok(latestMessages.some((message) => message.content.includes("fresh prompt stays current")));
+  assert.ok(!latestMessages.some((message) => message.content.includes("old prompt should not repeat")));
+});
+
+test("API runtime moves history older than 30 days into long-term memory lines", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "st-character-wechat-api-ltm-test-"));
+  const calls = [];
+  let fetchCount = 0;
+  const runtimeConfig = {
+    runtime: "api",
+    sessionsFile: path.join(dir, "sessions.json"),
+    apiThreadsFile: path.join(dir, "api-threads.json"),
+    apiBaseUrl: "https://api.example.test/v1",
+    apiKey: "test-key",
+    apiModel: "chat-model",
+    apiHistoryLimit: 40,
+    apiStreamingEnabled: false,
+    apiTimeCompactionEnabled: true,
+    apiHistoryRecentDays: 3,
+    apiHistoryWeeklyCompactAfterDays: 7,
+    apiHistoryMonthlyCompactAfterDays: 30,
+    localTimeZone: "America/New_York",
+  };
+  const runtimeOptions = {
+    fetch: async (url, init) => {
+      fetchCount += 1;
+      calls.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        async text() {
+          return JSON.stringify({
+            choices: [{
+              message: { content: `reply-${fetchCount}` },
+            }],
+          });
+        },
+      };
+    },
+  };
+
+  const events = [];
+  let adapter = createApiRuntimeAdapter(runtimeConfig, runtimeOptions);
+  adapter.onEvent((event) => events.push(event));
+  const threadsFile = path.join(dir, "api-threads.json");
+  await adapter.sendTextTurn({
+    bindingKey: "binding-ltm",
+    workspaceRoot: "/workspace",
+    text: "CHARACTER WECHAT CHAT MODE\n\n## Description\nold prompt should not repeat\n\n## User Message\n不要把隐私信息写进示例",
+    metadata: { characterChat: true },
+  });
+  await waitFor(() => events.filter((event) => event.type === "runtime.turn.completed").length >= 1);
+  markStoredApiMessagesOlderThan(threadsFile, 40);
+
+  adapter = createApiRuntimeAdapter(runtimeConfig, runtimeOptions);
+  adapter.onEvent((event) => events.push(event));
+  await adapter.sendTextTurn({
+    bindingKey: "binding-ltm",
+    workspaceRoot: "/workspace",
+    text: "fresh hello",
+    metadata: { characterChat: true },
+  });
+  await waitFor(() => events.filter((event) => event.type === "runtime.turn.completed").length >= 2);
+
+  const latestMessages = calls.at(-1).messages;
+  const ltm = latestMessages.find((message) => message.content.includes("<LTM v1>"));
+  assert.ok(ltm);
+  assert.ok(ltm.content.includes("Long-term memory lines"));
+  assert.match(ltm.content, /^B\|b[0-9a-f]{8}\|high\|\d{4}-\d{2}-\d{2}\|用户：不要把隐私信息写进示例/m);
+  assert.ok(!ltm.content.includes("长期 API 历史摘要"));
   assert.ok(!latestMessages.some((message) => message.content.includes("old prompt should not repeat")));
 });
 
